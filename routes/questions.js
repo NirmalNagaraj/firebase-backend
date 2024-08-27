@@ -3,7 +3,6 @@ const router = express.Router();
 const { db } = require('./config/firebaseAdmin'); // Firestore instance
 const extractRegisterNumber = require('./middlewares/extractRegisterNumber');
 
-module.exports = () => {
   // Add a new question
   router.post('/add-question', extractRegisterNumber, async (req, res) => {
     const { companyName, year, round, question, solution, tags, externalLinks, additionalNotes } = req.body;
@@ -34,27 +33,35 @@ module.exports = () => {
   // Retrieve questions by company name
   router.get('/search', async (req, res) => {
     const { companyName } = req.query;
-
+  
     try {
       let query = db.collection('CompanyQuestions');
-      if (companyName) {
+      
+      // Check if companyName is provided and valid
+      if (companyName && companyName.trim() !== '') {
         query = query.where('companyName', '==', companyName);
       }
-
+  
       const snapshot = await query.get();
+      
+      // Check if snapshot is empty
+      if (snapshot.empty) {
+        return res.status(404).json({ message: 'No questions found for the given company.' });
+      }
+  
       const questions = [];
-
+      
       snapshot.forEach(doc => {
-        questions.push({ id: doc.id, ...doc.data() });
+        questions.push({ id: doc.id, ...doc.data() }); // Include the auto-generated ID
       });
-
+  
       res.status(200).json(questions);
     } catch (error) {
       console.error('Error retrieving questions:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
-
+  
   // Retrieve a single question by ID
   router.get('/detail/:id', async (req, res) => {
     const { id } = req.params;
@@ -80,20 +87,27 @@ module.exports = () => {
 
   // Retrieve all questions
   router.get('/all', async (req, res) => {
+  
     try {
       const snapshot = await db.collection('CompanyQuestions').get();
+  
+      if (snapshot.empty) {
+        console.log('No documents found');
+        return res.status(404).json({ message: 'No questions found' });
+      }
+  
       const questions = [];
-
       snapshot.forEach(doc => {
         questions.push({ id: doc.id, ...doc.data() });
       });
-
-      res.json(questions);
+  
+      res.status(200).json(questions);
     } catch (error) {
       console.error('Error fetching questions:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
+  
 
   // Update a question
   router.put('/update-question/:id', async (req, res) => {
@@ -135,5 +149,4 @@ module.exports = () => {
     }
   });
 
-  return router;
-};
+module.exports = router;
