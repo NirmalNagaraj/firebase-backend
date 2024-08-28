@@ -10,7 +10,7 @@ const getUserCredentials = async (req, res, next) => {
   try {
     // Retrieve user credentials from Firestore
     const credentialsDoc = await db.collection('userCredentials')
-      .where('Register Number', '==', registerNumber)
+      .where('registerNumber', '==', registerNumber)
       .limit(1)
       .get();
 

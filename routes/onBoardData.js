@@ -31,10 +31,15 @@ router.post('/add', extractRegisterNumber, async (req, res) => {
       'Github': github,
       'LinkedIn': linkedin,
       'Resume': resume,
-      'Current Backlogs': currentBacklogs, // This field wasn't mentioned, but assuming you want to include it
+      'Current Backlogs': currentBacklogs,
     });
 
-    res.status(200).json({ message: 'Data updated successfully' });
+    // After a successful update, add the register number to the isOnboarding collection with an auto-generated ID
+    await db.collection('isOnboarding').add({
+      'Register Number': registerNumber,
+    });
+
+    res.status(200).json({ message: 'Data updated and register number added to isOnboarding collection successfully' });
   } catch (error) {
     console.error('Error updating onboarding data:', error);
     res.status(500).json({ message: 'Server error' });
