@@ -12,8 +12,11 @@ const isOnboarding = require('./routes/auth/isOnboarding')
 const onboardingData = require('./routes/onBoardData');
 const isCredentialsRouter = require('./routes/auth/isCredentials');
 const credentialsRouter = require('./routes/credentials');
-const UsersPasswordRouter = require('./routes/auth/userPassword')
-
+const UsersPasswordRouter = require('./routes/auth/userPassword');
+const adminRouter = require('./routes/auth/adminLogin');
+const cgpaConfigRouter = require('./routes/config/cgpa');
+const analyticsRouter = require('./routes/analytics');
+const filterRouter = require('./routes/filter');
 const app = express();
 const port = process.env.PORT || 8000;
 
@@ -34,6 +37,10 @@ app.use('/onboardData',onboardingData);
 app.use('/credentials',credentialsRouter);
 app.use('/',isCredentialsRouter);
 app.use('/user',UsersPasswordRouter);
+app.use('/auth',adminRouter)
+app.use('/config',cgpaConfigRouter);
+app.use('/analytics',analyticsRouter)
+app.use('/query',filterRouter)
 // Root route
 app.get('/', (req, res) => {
   res.send('Welcome to the API');
