@@ -10,7 +10,9 @@ const compilerRouter = require('./routes/compiler')
 const isMentorRouter = require('./routes/auth/isMentor')
 const isOnboarding = require('./routes/auth/isOnboarding')
 const onboardingData = require('./routes/onBoardData');
+const isCredentialsRouter = require('./routes/auth/isCredentials');
 const credentialsRouter = require('./routes/credentials');
+const UsersPasswordRouter = require('./routes/auth/userPassword')
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -30,6 +32,8 @@ app.use('/mentor',isMentorRouter());
 app.use('/check',isOnboarding);
 app.use('/onboardData',onboardingData);
 app.use('/credentials',credentialsRouter);
+app.use('/',isCredentialsRouter);
+app.use('/user',UsersPasswordRouter);
 // Root route
 app.get('/', (req, res) => {
   res.send('Welcome to the API');
