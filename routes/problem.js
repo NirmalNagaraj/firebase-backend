@@ -13,22 +13,28 @@ router.post('/add', async (req, res) => {
       input1,
       input2,
       output1,
-      output2
+      output2,
+      explanation1, // New field for explanation of input1
+      explanation2,  // New field for explanation of input2
+      constraints
     } = req.body;
 
     try {
       // Add a new document with auto-generated ID
       const docRef = await db.collection('Problems').add({
         problemName,
-        problemDescription,
-        sampleInput,
-        sampleOutput,
-        link,
-        hint,
-        input1,
-        input2,
-        output1,
-        output2
+      problemDescription,
+      sampleInput,
+      sampleOutput,
+      link,
+      hint,
+      input1,
+      input2,
+      output1,
+      output2,
+      explanation1, // New field for explanation of input1
+      explanation2,  // New field for explanation of input2
+      constraints
       });
 
       res.status(201).json({ message: 'Problem added successfully', id: docRef.id });
