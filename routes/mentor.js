@@ -25,5 +25,27 @@ router.get('/retrieve/mentors', async (req, res) => {
         return res.status(500).json({ message: 'Error retrieving mentors' });
     }
 });
+router.post('/team-members/add', async (req, res) => {
+    try {
+      const mentorDetails = req.body; // Array of mentor-mentee pairs
+  
+      const batch = db.batch();
+  
+      mentorDetails.forEach(({ registerNumber, teamRegisterNumber }) => {
+        const docRef = db.collection('mentorTeamDetails').doc(); // Auto-generated ID
+        batch.set(docRef, {
+          registerNumber,
+          teamRegisterNumber,
+        });
+      });
+  
+      await batch.commit();
+  
+      res.status(200).json({ message: 'Mentor and mentee details added successfully!' });
+    } catch (error) {
+      console.error('Error adding mentor and mentee details:', error);
+      res.status(500).json({ message: 'Failed to add mentor and mentee details' });
+    }
+  });
 
 module.exports = router;
