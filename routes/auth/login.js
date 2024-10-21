@@ -8,6 +8,7 @@ const router = express.Router();
 // Route to authenticate user and generate JWT
 router.post('/login', async (req, res) => {
   const { registernumber, password } = req.body;
+  
   const user = await authenticateUser(registernumber, password);
 
   if (user) {
@@ -18,23 +19,22 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Function to authenticate user
+
 async function authenticateUser(registernumber, password) {
   try {
     // Query the collection to find the document where RegisterNumber matches
-    const usersCollection = db.collection('Users_Password');
+    const usersCollection = db.collection('Users_Credentials');
     const querySnapshot = await usersCollection.where('RegisterNumber', '==', registernumber).get();
 
     if (querySnapshot.empty) {
       console.log('No matching documents found.'); // Debugging line
-      return null; // No user found
+      return null; // No user found 
     }
 
     // Iterate through query results (should be at most one document)
     let user = null;
     querySnapshot.forEach(doc => {
       const userData = doc.data();
-      console.log('Retrieved user data:', userData); // Debugging line
       if (userData.Password === password) {
         user = { RegisterNumber: registernumber }; // Return user if password matches
       } else {

@@ -17,7 +17,6 @@ module.exports = () => {
       }
 
       const userData = usersSnapshot.docs[0].data();
-      console.log('User data:', userData); // Debugging line
       res.json(userData);
     } catch (err) {
       console.error('Error fetching user details:', err); // Debugging line
