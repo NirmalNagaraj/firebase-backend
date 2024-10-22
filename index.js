@@ -20,6 +20,7 @@ const filterRouter = require('./routes/filter');
 const mentorRouter = require('./routes/mentor');
 // const emailRouter = require('./routes/email')
 const applyRouter = require('./routes/applications')
+const reportRouter = require('./routes/report')
 const app = express();
 const port = process.env.PORT || 8000;
 
@@ -46,6 +47,7 @@ app.use('/analytics',analyticsRouter)
 app.use('/query',filterRouter)
 app.use('/',mentorRouter);
 app.use('/',applyRouter);
+app.use('/report',reportRouter)
 // app.use('/email',emailRouter);
 // Root route
 app.get('/', (req, res) => {
