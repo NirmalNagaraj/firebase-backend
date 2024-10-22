@@ -17,7 +17,9 @@ const adminRouter = require('./routes/auth/adminLogin');
 const cgpaConfigRouter = require('./routes/config/cgpa');
 const analyticsRouter = require('./routes/analytics');
 const filterRouter = require('./routes/filter');
-const mentorRouter = require('./routes/mentor')
+const mentorRouter = require('./routes/mentor');
+// const emailRouter = require('./routes/email')
+const applyRouter = require('./routes/applications')
 const app = express();
 const port = process.env.PORT || 8000;
 
@@ -43,6 +45,8 @@ app.use('/config',cgpaConfigRouter);
 app.use('/analytics',analyticsRouter)
 app.use('/query',filterRouter)
 app.use('/',mentorRouter);
+app.use('/',applyRouter);
+// app.use('/email',emailRouter);
 // Root route
 app.get('/', (req, res) => {
   res.send('Welcome to the API');
