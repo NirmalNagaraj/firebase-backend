@@ -46,4 +46,88 @@ router.post('/add', extractRegisterNumber, async (req, res) => {
   }
 });
 
+
+router.post('/new', extractRegisterNumber, async (req, res) => {
+  try {
+    const {
+      email, // Previously 'Email'
+      github, // Previously 'Github'
+      rollNo, // Previously 'RollNo'
+      currentBacklogs, // Previously 'CurrentBacklogs'
+      historyOfArrears, // Previously 'HistoryOfArrears'
+      tenPercent, // Previously 'TenPercent'
+      diplomaPercent, // Previously 'DiplomaPercent'
+      name, // Previously 'Name'
+      linkedin, // Previously 'LinkedIn'
+      mobileNumber, // Previously 'MobileNumber'
+      isDiploma, // Previously 'isDiploma'
+      otherInterestedDomain, // Previously 'OtherInterestedDomain'
+      skillSet, // Previously 'SkillSet'
+      domain, // Previously 'Domain'
+      resume, // Previously 'Resume'
+      cgpa, // Previously 'CGPA'
+    } = req.body;
+    
+    const { registerNumber } = req;
+    
+    console.log({
+      email,
+      github,
+      rollNo,
+      currentBacklogs,
+      historyOfArrears,
+      tenPercent,
+      diplomaPercent,
+      name,
+      linkedin,
+      mobileNumber,
+      isDiploma,
+      otherInterestedDomain,
+      skillSet,
+      domain,
+      resume,
+      cgpa,
+      registerNumber,
+    });
+    
+    // Construct the data object to insert into Firestore
+    const userDetails = {
+      Email: email || '',
+      'Register Number': registerNumber,
+      Github: github || '',
+      'Roll No': rollNo || '',
+      'Current Backlogs': currentBacklogs || '0',
+      'History Of Arrears': historyOfArrears || '0',
+      '10 Percent': tenPercent || '',
+      'Diploma / 12th Percentage': diplomaPercent || '',
+      Name: name || '',
+      LinkedIn: linkedin || '',
+      'Mobile Number': mobileNumber || '',
+      isDiploma: isDiploma ? 'Yes' : 'No', // If true, insert "Yes", otherwise "No"
+      SkillSet: skillSet || '',
+      Domain: domain || '',
+      Resume: resume || '',
+      CGPA: cgpa || '',
+      OtherInterestedDomain: otherInterestedDomain || '',
+      isMentor: 0, // Default value
+    };
+
+    // Insert into the Firestore collection
+    const newDocRef = await db.collection('Users_details').add(userDetails);
+
+    res.status(200).json({
+      success: true,
+      message: 'User details added successfully',
+      id: newDocRef.id, // Return the auto-generated Firestore ID
+    });
+  } catch (error) {
+    console.error('Error adding user details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding user details',
+    });
+  }
+});
+
+
 module.exports = router;

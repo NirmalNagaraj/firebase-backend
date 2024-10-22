@@ -24,4 +24,24 @@ router.get('/isOnboarding', extractRegisterNumber ,async (req, res) => {
       res.status(500).json({ message: 'Server error' });
     }
   });
+  router.get('/check-register-number',extractRegisterNumber, async (req, res) => {
+    const { registerNumber } = req;
+    const usersCollection = db.collection('Users_details');
+  
+    try {
+      const snapshot = await usersCollection.where('Register Number', '==', registerNumber).get();
+  
+      if (snapshot.empty) {
+        // RegisterNumber not found
+        return res.json({ exists: false });
+      }
+  
+      // RegisterNumber found
+      return res.json({ exists: true });
+    } catch (error) {
+      console.error('Error checking RegisterNumber: ', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+  
 module.exports = router;
