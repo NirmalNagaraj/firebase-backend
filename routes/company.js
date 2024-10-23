@@ -76,7 +76,7 @@ router.get('/previous', async (req, res) => {
 
 // Route to add a new company
 router.post('/add', async (req, res) => {
-  const { name, date, ctc, criteria, type, role, link } = req.body;
+  const { name, date, ctc, criteria, type, role, link, imageUrls } = req.body;
 
   try {
     const newCompany = {
@@ -87,7 +87,7 @@ router.post('/add', async (req, res) => {
       type,
       role,
       link,
-      created_at: new Date(),
+      imageUrls: imageUrls || [], // Add imageUrls or default to an empty array if not provided
     };
 
     // Add the company document to the Company collection
@@ -95,8 +95,8 @@ router.post('/add', async (req, res) => {
 
     // Create a new document in the Company_Applications collection with the company name
     const applicationsDoc = {
-      Willing: [],
-      NotWilling: []
+      willing: [],
+      notWilling: []
     };
 
     await db.collection('Company_Applications').doc(name).set(applicationsDoc);
@@ -107,6 +107,7 @@ router.post('/add', async (req, res) => {
     res.status(500).json({ success: false, message: 'Error adding company' });
   }
 });
+
 
 router.post('/check-willingness', async (req, res) => {
   const { registerNumber, companyName } = req.body;
