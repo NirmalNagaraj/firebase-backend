@@ -29,7 +29,54 @@ const extractRegisterNumber = require('./middlewares/extractRegisterNumber');
       res.status(500).json({ error: 'Internal server error' });
     }
   });
-
+  router.put('/update-question/:id', extractRegisterNumber, async (req, res) => {
+    const { id } = req.params; // Get the document ID from the URL
+    const { companyName, year, round, question, solution, externalLinks, additionalNotes } = req.body;
+    const registerNumber = req.registerNumber; // Extracted from JWT by the middleware
+  
+    try {
+      // Find the document by its ID
+      const docRef = db.collection('CompanyQuestions').doc(id);
+      const doc = await docRef.get();
+  
+      // Check if the document exists
+      if (!doc.exists) {
+        return res.status(404).json({ error: 'Question not found' });
+      }
+  
+      // Check if the registerNumber matches to ensure the user is authorized to update this document
+      if (doc.data().registerNumber !== registerNumber) {
+        return res.status(403).json({ error: 'You are not authorized to update this question' });
+      }
+  
+      // Prepare the updated data
+      const updatedQuestion = {
+        companyName,
+        year,
+        round,
+        question,
+        solution,
+        externalLinks,
+        additionalNotes,
+        updated_at: new Date(), // Update the timestamp
+      };
+  
+      // Remove undefined fields (if no values were passed for optional fields)
+      Object.keys(updatedQuestion).forEach(key => {
+        if (updatedQuestion[key] === undefined) {
+          delete updatedQuestion[key];
+        }
+      });
+  
+      // Update the document in Firestore
+      await docRef.update(updatedQuestion);
+  
+      res.status(200).json({ message: 'Question updated successfully', questionId: id });
+    } catch (error) {
+      console.error('Error updating question:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
   // Retrieve questions by company name
   router.get('/search', async (req, res) => {
     const { companyName } = req.query;
@@ -109,32 +156,7 @@ const extractRegisterNumber = require('./middlewares/extractRegisterNumber');
   });
   
 
-  // Update a question
-  router.put('/update-question/:id', async (req, res) => {
-    const { id } = req.params;
-    const { companyName, year, round, question, solution, tags, externalLinks, additionalNotes, registerNumber } = req.body;
 
-    try {
-      const updatedQuestion = {
-        companyName,
-        year,
-        round,
-        question,
-        solution,
-        tags: tags.split(',').map(tag => tag.trim()), // ensure tags are stored as an array
-        externalLinks,
-        additionalNotes,
-        registerNumber,
-        updated_at: new Date(),
-      };
-
-      await db.collection('CompanyQuestions').doc(id).update(updatedQuestion);
-      res.status(200).json({ message: 'Question updated successfully' });
-    } catch (error) {
-      console.error('Error updating question:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
 
   // Delete a question
   router.delete('/delete-question/:id', async (req, res) => {
@@ -146,6 +168,35 @@ const extractRegisterNumber = require('./middlewares/extractRegisterNumber');
     } catch (error) {
       console.error('Error deleting question:', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  router.get('/get-questions',extractRegisterNumber, async (req, res) => {
+    const  registerNumber  = req.registerNumber; // Expecting registerNumber to be passed as a query parameter
+  
+    if (!registerNumber) {
+      return res.status(400).json({ error: 'registerNumber is required' });
+    }
+  
+    try {
+      // Query the CompanyQuestions collection for documents with the matching registerNumber
+      const snapshot = await db.collection('CompanyQuestions')
+        .where('registerNumber', '==', registerNumber)
+        .get();
+  
+      // Check if there are any documents
+      if (snapshot.empty) {
+        return res.status(404).json({ message: 'No questions found for this register number.' });
+      }
+  
+      // Extract the documents into an array
+      const questions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  
+      // Send the questions as a response
+      res.status(200).json(questions);
+    } catch (error) {
+      console.error('Error retrieving questions:', error);
+      res.status(500).json({ error: 'Failed to retrieve questions' });
     }
   });
 
