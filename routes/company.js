@@ -6,37 +6,53 @@ const extractRegisterNumber = require('./middlewares/extractRegisterNumber');
 
 // Route to get upcoming company data based on student's CGPA
 router.get('/upcoming', extractRegisterNumber, async (req, res) => {
-  const registerNumber = req.registerNumber; // Ensure this is defined
+  const registerNumber = req.registerNumber;
 
   if (!registerNumber) {
     return res.status(400).json({ error: 'Register number is required' });
   }
 
   try {
-    // Fetch student CGPA using register number
-    const studentSnapshot = await db.collection('Users_details').where('Register Number', '==', registerNumber).limit(1).get();
- 
+    // Fetch student details using register number
+    const studentSnapshot = await db.collection('Users_details')
+      .where('Register Number', '==', registerNumber)
+      .limit(1)
+      .get();
+    
     if (studentSnapshot.empty) {
       return res.status(404).json({ error: 'Student not found' });
     }
 
-    const studentCGPA = studentSnapshot.docs[0].data().CGPA;
+    const studentData = studentSnapshot.docs[0].data();
+    const studentCGPA = parseFloat(studentData.CGPA) || 0;
+    const historyOfArrears = parseInt(studentData['History of Arrears']) || 0;
+    const currentBacklogs = parseInt(studentData['Current Backlogs']) || 0;
 
-    // Query to get upcoming companies with criteria filtering
-    const companySnapshot = await db
-      .collection('Company')
+    // Only filter by date in Firestore query
+    const companySnapshot = await db.collection('Company')
       .where('date', '>=', new Date())
-      .where('criteria', '<=', studentCGPA)
       .get();
 
-    const companyData = companySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Handle all other filtering in memory
+    const companyData = companySnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(company => {
+        // Parse the company values, defaulting to 0 if undefined
+        const companyCriteria = parseFloat(company.criteria) || 0;
+        const companyHistoryArrears = parseInt(company.maxAllowedHistoryOfArrears) ?? 0;
+        const companyCurrentArrears = parseInt(company.maxAllowedStandingArrears) ?? 0;
 
+        return studentCGPA >= companyCriteria &&
+               historyOfArrears <= companyHistoryArrears &&
+               currentBacklogs <= companyCurrentArrears;
+    });
+    
     res.json(companyData);
   } catch (err) {
-    console.error('Error querying database:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // Route to get all upcoming companies
 router.get('/upcoming-companies', async (req, res) => {
@@ -76,7 +92,7 @@ router.get('/previous', async (req, res) => {
 
 // Route to add a new company
 router.post('/add', async (req, res) => {
-  const { name, date, ctc, criteria, type, role, link, imageUrls } = req.body;
+  const { name, date, ctc, criteria, type, role, link, imageUrls ,maxAllowedHistoryOfArrears ,maxAllowedStandingArrears} = req.body;
 
   try {
     const newCompany = {
@@ -88,6 +104,8 @@ router.post('/add', async (req, res) => {
       role,
       link,
       imageUrls: imageUrls || [], // Add imageUrls or default to an empty array if not provided
+      maxAllowedStandingArrears ,
+      maxAllowedHistoryOfArrears
     };
 
     // Add the company document to the Company collection
