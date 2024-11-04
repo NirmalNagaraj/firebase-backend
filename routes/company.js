@@ -18,7 +18,7 @@ router.get('/upcoming', extractRegisterNumber, async (req, res) => {
       .where('Register Number', '==', registerNumber)
       .limit(1)
       .get();
-    
+
     if (studentSnapshot.empty) {
       return res.status(404).json({ error: 'Student not found' });
     }
@@ -28,30 +28,48 @@ router.get('/upcoming', extractRegisterNumber, async (req, res) => {
     const historyOfArrears = parseInt(studentData['History of Arrears']) || 0;
     const currentBacklogs = parseInt(studentData['Current Backlogs']) || 0;
 
-    // Only filter by date in Firestore query
+    // Fetch upcoming companies from Firestore
     const companySnapshot = await db.collection('Company')
       .where('date', '>=', new Date())
       .get();
 
-    // Handle all other filtering in memory
+    // Filter the companies based on the conditions
     const companyData = companySnapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() }))
       .filter(company => {
-        // Parse the company values, defaulting to 0 if undefined
         const companyCriteria = parseFloat(company.criteria) || 0;
-        const companyHistoryArrears = parseInt(company.maxAllowedHistoryOfArrears) ?? 0;
-        const companyCurrentArrears = parseInt(company.maxAllowedStandingArrears) ?? 0;
+        const companyHistoryArrears = company.maxAllowedHistoryOfArrears;
+        const companyCurrentArrears = company.maxAllowedStandingArrears;
 
+        // Condition 1: If both fields are "Not Mentioned," include the company
+        if (companyHistoryArrears === 'Not Mentioned' && companyCurrentArrears === 'Not Mentioned') {
+          return studentCGPA >= companyCriteria;
+        }
+
+        // Condition 2: If only maxAllowedStandingArrears is "Not Mentioned", check maxAllowedHistoryOfArrears
+        if (companyCurrentArrears === 'Not Mentioned') {
+          return studentCGPA >= companyCriteria &&
+                 historyOfArrears <= parseInt(companyHistoryArrears);
+        }
+
+        // Condition 3: If only maxAllowedHistoryOfArrears is "Not Mentioned", check maxAllowedStandingArrears
+        if (companyHistoryArrears === 'Not Mentioned') {
+          return studentCGPA >= companyCriteria &&
+                 currentBacklogs <= parseInt(companyCurrentArrears);
+        }
+
+        // Default condition: Check both history of arrears and standing arrears
         return studentCGPA >= companyCriteria &&
-               historyOfArrears <= companyHistoryArrears &&
-               currentBacklogs <= companyCurrentArrears;
-    });
-    
+               historyOfArrears <= parseInt(companyHistoryArrears) &&
+               currentBacklogs <= parseInt(companyCurrentArrears);
+      });
+
     res.json(companyData);
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 // Route to get all upcoming companies

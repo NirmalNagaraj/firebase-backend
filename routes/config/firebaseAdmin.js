@@ -20,6 +20,6 @@ admin.initializeApp({
   databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
 });
 
-const db = admin.firestore(); // Initialize Firestore instance
+const db = admin.firestore(); 
 
 module.exports = {admin ,db}; // Export Firestore instance for use in other files
