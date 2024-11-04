@@ -33,42 +33,54 @@ router.get('/upcoming', extractRegisterNumber, async (req, res) => {
       .where('date', '>=', new Date())
       .get();
 
-    // Filter the companies based on the conditions
-    const companyData = companySnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(company => {
-        const companyCriteria = parseFloat(company.criteria) || 0;
-        const companyHistoryArrears = company.maxAllowedHistoryOfArrears;
-        const companyCurrentArrears = company.maxAllowedStandingArrears;
+    // Filter the companies and fetch the count of willing students
+    const companyData = await Promise.all(companySnapshot.docs.map(async (doc) => {
+      const company = { id: doc.id, ...doc.data() };
+      const companyName = company.name; // Assuming 'name' field holds the company name
+      const companyCriteria = parseFloat(company.criteria) || 0;
+      const companyHistoryArrears = company.maxAllowedHistoryOfArrears;
+      const companyCurrentArrears = company.maxAllowedStandingArrears;
 
-        // Condition 1: If both fields are "Not Mentioned," include the company
-        if (companyHistoryArrears === 'Not Mentioned' && companyCurrentArrears === 'Not Mentioned') {
-          return studentCGPA >= companyCriteria;
-        }
+      // Determine if the student is eligible based on the given conditions
+      let isEligible = false;
 
-        // Condition 2: If only maxAllowedStandingArrears is "Not Mentioned", check maxAllowedHistoryOfArrears
-        if (companyCurrentArrears === 'Not Mentioned') {
-          return studentCGPA >= companyCriteria &&
-                 historyOfArrears <= parseInt(companyHistoryArrears);
-        }
+      if (companyHistoryArrears === 'Not Mentioned' && companyCurrentArrears === 'Not Mentioned') {
+        isEligible = studentCGPA >= companyCriteria;
+      } else if (companyCurrentArrears === 'Not Mentioned') {
+        isEligible = studentCGPA >= companyCriteria && historyOfArrears <= parseInt(companyHistoryArrears);
+      } else if (companyHistoryArrears === 'Not Mentioned') {
+        isEligible = studentCGPA >= companyCriteria && currentBacklogs <= parseInt(companyCurrentArrears);
+      } else {
+        isEligible = studentCGPA >= companyCriteria &&
+                     historyOfArrears <= parseInt(companyHistoryArrears) &&
+                     currentBacklogs <= parseInt(companyCurrentArrears);
+      }
 
-        // Condition 3: If only maxAllowedHistoryOfArrears is "Not Mentioned", check maxAllowedStandingArrears
-        if (companyHistoryArrears === 'Not Mentioned') {
-          return studentCGPA >= companyCriteria &&
-                 currentBacklogs <= parseInt(companyCurrentArrears);
-        }
+      if (!isEligible) return null;
 
-        // Default condition: Check both history of arrears and standing arrears
-        return studentCGPA >= companyCriteria &&
-               historyOfArrears <= parseInt(companyHistoryArrears) &&
-               currentBacklogs <= parseInt(companyCurrentArrears);
-      });
+      // Fetch the willing count from Company_Applications using company name as the document ID
+      const applicationSnapshot = await db.collection('Company_Applications').doc(companyName).get();
+      const willingCount = applicationSnapshot.exists && Array.isArray(applicationSnapshot.data().willing)
+        ? applicationSnapshot.data().willing.length
+        : 0;
 
-    res.json(companyData);
+      // Return company data with the additional willing count
+      return {
+        ...company,
+        willingCount
+      };
+    }));
+
+    // Filter out any null results (companies where the student is not eligible)
+    const filteredCompanyData = companyData.filter(company => company !== null);
+
+    res.json(filteredCompanyData);
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 
 
 
