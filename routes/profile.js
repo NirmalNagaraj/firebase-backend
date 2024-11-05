@@ -79,7 +79,8 @@ module.exports = () => {
       // Extract only specific fields
       const arrearDetails = {
         historyOfArrears: data["History of Arrears"],
-        currentBacklogs: data["Current Backlogs"]
+        currentBacklogs: data["Current Backlogs"],
+        imageUrl
       };
   
       res.status(200).json({ arrearDetails });
