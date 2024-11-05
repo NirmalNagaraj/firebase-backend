@@ -80,7 +80,7 @@ module.exports = () => {
       const arrearDetails = {
         historyOfArrears: data["History of Arrears"],
         currentBacklogs: data["Current Backlogs"],
-        imageUrl: data[imageUrl]
+        imageUrl: data.imageUrl
       };
   
       res.status(200).json({ arrearDetails });
