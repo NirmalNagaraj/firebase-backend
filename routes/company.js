@@ -24,7 +24,13 @@ router.get('/upcoming', extractRegisterNumber, async (req, res) => {
     }
 
     const studentData = studentSnapshot.docs[0].data();
-    const studentCGPA = parseFloat(studentData.CGPA) || 0;
+    let studentCGPA = parseFloat(studentData.CGPA) || 0;
+
+    // Normalize CGPA if it's in a scale of 100 (i.e., greater than 10)
+    if (studentCGPA > 10) {
+      studentCGPA = studentCGPA / 10;
+    }
+
     const historyOfArrears = parseInt(studentData['History of Arrears']) || 0;
     const currentBacklogs = parseInt(studentData['Current Backlogs']) || 0;
 
@@ -81,6 +87,53 @@ router.get('/upcoming', extractRegisterNumber, async (req, res) => {
 });
 
 
+
+router.put('/edit', async (req, res) => {
+  const {
+    id,
+    name,
+    date,  // This should be { _seconds, _nanoseconds }
+    role,
+    criteria,
+    ctc,
+    link,
+    maxAllowedHistoryOfArrears,
+    maxAllowedStandingArrears
+  } = req.body;
+
+  const companyCollection = db.collection('Company');
+
+  if (!id) {
+    return res.status(400).json({ error: 'Company ID is required.' });
+  }
+
+  try {
+    // Document reference based on the provided company ID
+    const companyDocRef = companyCollection.doc(id);
+
+    // Convert Firestore's timestamp to a Date object if date is an object with _seconds and _nanoseconds
+    const formattedDate = date && date._seconds
+      ? new Date(date._seconds * 1000 + (date._nanoseconds || 0) / 1e6)
+      : null;
+
+    // Update the document with the provided fields
+    await companyDocRef.update({
+      name,
+      date: formattedDate,  // Firestore will accept Date objects here
+      role,
+      criteria,
+      ctc,
+      link,
+      maxAllowedHistoryOfArrears,
+      maxAllowedStandingArrears
+    });
+
+    res.status(200).json({ message: 'Company details updated successfully.' });
+  } catch (error) {
+    console.error('Error updating company:', error);
+    res.status(500).json({ error: 'Failed to update company data.' });
+  }
+});
 
 
 
