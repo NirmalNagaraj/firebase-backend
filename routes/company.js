@@ -236,6 +236,45 @@ router.get('/placed-companies', async (req, res) => {
 });
 
 
+//route to get placed data as per the student number
+router.get('/placed-details/:studentId', async (req, res) => {
+  const { studentId } = req.params; // Get studentId from route parameters
+
+  try {
+    let placedDetails = [];
+
+    // Retrieve all documents from the Company_Applications collection
+    const applicationsSnapshot = await db.collection('Company_Applications').where('placed', '!=', null).get();
+
+    applicationsSnapshot.forEach(doc => {
+      const docData = doc.data();
+
+      if (docData.placed && docData.placed[studentId]) {
+        const placedEntry = docData.placed[studentId];
+
+        placedDetails.push({
+          companyName: doc.id, // Document ID as company name
+          studentId: studentId,
+          role: placedEntry.role,
+          ctc: placedEntry.ctc,
+          date: placedEntry.date,
+          imageUrl: placedEntry.imageUrl // Include imageUrl if needed
+        });
+      }
+    });
+
+    if (placedDetails.length === 0) {
+      return res.status(404).json({ error: 'No placement details found for the given student ID.' });
+    }
+
+    res.status(200).json(placedDetails);
+  } catch (error) {
+    console.error('Error fetching placement details:', error);
+    res.status(500).json({ error: 'Failed to retrieve placement details.' });
+  }
+});
+
+
 
 
 // Route to get all upcoming companies
