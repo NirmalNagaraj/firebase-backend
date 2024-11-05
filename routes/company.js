@@ -134,6 +134,107 @@ router.put('/edit', async (req, res) => {
     res.status(500).json({ error: 'Failed to update company data.' });
   }
 });
+//Route to get the company names for Using it in the Admin side
+router.get('/company-names', async (req, res) => {
+  try {
+    // Query the Company collection to get only the 'name' field
+    const companySnapshot = await db.collection('Company').select('name').get();
+
+    // Map through the results to get an array of names
+    const companyNames = companySnapshot.docs.map(doc => ({
+      // id: doc.id,        // Including document ID if needed
+      name: doc.data().name
+    }));
+
+    res.status(200).json(companyNames);
+  } catch (error) {
+    console.error('Error fetching company names:', error);
+    res.status(500).json({ error: 'Failed to retrieve company names.' });
+  }
+});
+
+//route to get placed data company - wise
+router.get('/placed-companies', async (req, res) => {
+  const { companyName, duration } = req.query; // Get params from query string
+
+  try {
+    let placedCompanies = [];
+
+    // If companyName is provided, filter by company name (document ID)
+    if (companyName) {
+      const applicationSnapshot = await db.collection('Company_Applications').doc(companyName).get();
+
+      if (applicationSnapshot.exists) {
+        const docData = applicationSnapshot.data();
+
+        // Check if 'placed' field exists
+        if (docData.placed) {
+          // Iterate over the placed entries and format the response
+          for (const [studentId, value] of Object.entries(docData.placed)) {
+            placedCompanies.push({
+              companyName: companyName,
+              studentId: studentId,
+              ...value // spread the other fields (role, ctc, date, imageUrl)
+            });
+          }
+        }
+      } else {
+        return res.status(404).json({ error: 'Company not found' });
+      }
+    } 
+    // If duration is provided, filter placed data within the specified duration
+    else if (duration) {
+      const [startDate, endDate] = duration.split(',').map(date => new Date(date.trim()));
+      const applicationsSnapshot = await db.collection('Company_Applications').where('placed', '!=', null).get();
+
+      applicationsSnapshot.forEach(doc => {
+        const docData = doc.data();
+
+        if (docData.placed) {
+          const placedEntries = docData.placed;
+
+          // Filter placed entries by date
+          for (const [key, value] of Object.entries(placedEntries)) {
+            const placementDate = new Date(value.date._seconds * 1000); // Convert Firestore date to JavaScript Date
+
+            // Check if the placement date is within the specified duration
+            if (placementDate >= startDate && placementDate <= endDate) {
+              placedCompanies.push({
+                companyName: doc.id, // Use document ID as company name
+                studentId: key,
+                ...value
+              });
+            }
+          }
+        }
+      });
+    } else {
+      // If no params are provided, retrieve all placed data
+      const applicationsSnapshot = await db.collection('Company_Applications').where('placed', '!=', null).get();
+
+      applicationsSnapshot.forEach(doc => {
+        const docData = doc.data();
+
+        if (docData.placed) {
+          // Iterate over the placed entries and format the response
+          for (const [studentId, value] of Object.entries(docData.placed)) {
+            placedCompanies.push({
+              companyName: doc.id, // Use document ID as company name
+              studentId: studentId,
+              ...value // spread the other fields (role, ctc, date, imageUrl)
+            });
+          }
+        }
+      });
+    }
+
+    res.status(200).json(placedCompanies);
+  } catch (error) {
+    console.error('Error fetching placed companies:', error);
+    res.status(500).json({ error: 'Failed to retrieve placed companies.' });
+  }
+});
+
 
 
 
