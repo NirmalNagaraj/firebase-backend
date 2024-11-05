@@ -89,5 +89,33 @@ module.exports = () => {
     }
   });
 
+  router.post('/profile-image', extractRegisterNumber, async (req, res) => {
+    const { imageUrl } = req.body;
+    const registerNumber = req.registerNumber;
+    
+    if (!registerNumber || !imageUrl) {
+      return res.status(400).json({ error: 'registerNumber and imageUrl are required' });
+    }
+  
+    try {
+      // Query Firestore for the document with the specified registerNumber
+      const usersRef = db.collection('Users_details');
+      const querySnapshot = await usersRef.where('Register Number', '==', registerNumber).get();
+  
+      if (querySnapshot.empty) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+  
+      // Update the first document found with the new imageUrl
+      const userDoc = querySnapshot.docs[0];
+      await userDoc.ref.update({ imageUrl });
+  
+      res.status(200).json({ message: 'Profile image updated successfully' });
+    } catch (error) {
+      console.error('Error updating profile image:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+  
   return router;
 };
