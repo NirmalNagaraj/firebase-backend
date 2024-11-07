@@ -40,7 +40,7 @@ router.post('/check-password', extractRegisterNumber, async (req, res) => {
   
     try {
       // Query the Users_Password collection for the document with the matching RegisterNumber
-      const querySnapshot = await db.collection('Users_Password')
+      const querySnapshot = await db.collection('Users_Credentials')
                                     .where('RegisterNumber', '==', registerNumber)
                                     .limit(1)
                                     .get();
