@@ -90,7 +90,7 @@ router.get('/testProblems', async (req, res) => {
 
 router.post('/addTestQuestion', extractRegisterNumber, async (req, res) => {
   try {
-    const { problemName, problemDescription, testCases, hint, difficulty } = req.body;
+    const { problemName, problemDescription, testCases, hint, difficulty ,topic} = req.body;
     const {registerNumber} = req;
     // Structure the data as expected
     const newTestProblem = {
@@ -100,6 +100,7 @@ router.post('/addTestQuestion', extractRegisterNumber, async (req, res) => {
       hint: hint || '',
       addedBy: registerNumber || '',
       difficulty: difficulty || 'Easy',
+      topic:topic ||''
     };
 
     // Add the document to Firestore with an auto-generated ID
