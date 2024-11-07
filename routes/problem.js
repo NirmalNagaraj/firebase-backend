@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const {db} = require('./config/firebaseAdmin')
+const {db} = require('./config/firebaseAdmin');
+const extractRegisterNumber = require('./middlewares/extractRegisterNumber');
 
 router.post('/add', async (req, res) => {
     const {
@@ -63,5 +64,52 @@ router.post('/add', async (req, res) => {
       res.status(500).json({ error: 'Failed to fetch problems' });
     }
   });
+
+  // Route to get all documents from Test_Problems collection
+router.get('/testProblems', async (req, res) => {
+  try {
+    const testProblemsCollection = db.collection('Test_problems');
+    const snapshot = await testProblemsCollection.get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No documents found' });
+    }
+
+    const testProblems = [];
+    snapshot.forEach(doc => {
+      testProblems.push({ id: doc.id, ...doc.data() });
+    });
+
+    res.status(200).json(testProblems);
+  } catch (error) {
+    console.error('Error fetching documents:', error);
+    res.status(500).json({ message: 'Error fetching documents', error: error.message });
+  }
+});
+
+
+router.post('/addTestQuestion', extractRegisterNumber, async (req, res) => {
+  try {
+    const { problemName, problemDescription, testCases, hint, difficulty } = req.body;
+    const {registerNumber} = req;
+    // Structure the data as expected
+    const newTestProblem = {
+      problemName: problemName || '',
+      problemDescription: problemDescription || '',
+      testCases: testCases || [],
+      hint: hint || '',
+      addedBy: registerNumber || '',
+      difficulty: difficulty || 'Easy',
+    };
+
+    // Add the document to Firestore with an auto-generated ID
+    const docRef = await db.collection('Test_problems').add(newTestProblem);
+
+    res.status(201).json({ message: 'Test question added successfully', id: docRef.id });
+  } catch (error) {
+    console.error('Error adding test question:', error);
+    res.status(500).json({ message: 'Error adding test question', error: error.message });
+  }
+});
 
 module.exports = router;

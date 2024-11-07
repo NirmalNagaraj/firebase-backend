@@ -328,7 +328,8 @@ router.post('/add', async (req, res) => {
       link,
       imageUrls: imageUrls || [], // Add imageUrls or default to an empty array if not provided
       maxAllowedStandingArrears ,
-      maxAllowedHistoryOfArrears
+      maxAllowedHistoryOfArrears,
+      created_at: new Date()
     };
 
     // Add the company document to the Company collection
