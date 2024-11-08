@@ -112,5 +112,43 @@ router.post('/addTestQuestion', extractRegisterNumber, async (req, res) => {
     res.status(500).json({ message: 'Error adding test question', error: error.message });
   }
 });
+router.put('/updateTestQuestion/:id', async (req, res) => {
+  const { id } = req.params; // Get the document ID from URL parameters
+  const {
+    problemName,
+    problemDescription,
+    testCases,
+    hint,
+    difficulty,
+    topic
+  } = req.body;
 
+  try {
+    // Get the reference to the specific document in the Firestore collection
+    const testProblemRef = db.collection('Test_problems').doc(id);
+
+    // Update the document with the provided data
+    await testProblemRef.update({
+      problemName,
+      problemDescription,
+      testCases,
+      hint,
+      difficulty,
+      topic,
+      updatedAt: new Date() // Optionally include an updated timestamp
+    });
+
+    // Respond with success
+    res.status(200).json({
+      success: true,
+      message: 'Test problem updated successfully!',
+    });
+  } catch (error) {
+    console.error('Error updating test problem:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating test problem',
+    });
+  }
+});
 module.exports = router;
