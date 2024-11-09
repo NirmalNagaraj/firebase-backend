@@ -299,9 +299,12 @@ router.get('/getAllTestData', async (req, res) => {
   
 
   router.post('/submission', async (req, res) => {
-    const { testId, registerNumber, score, problemId } = req.body;
-  
+    let { testId, registerNumber, score, problemId } = req.body;
+
     try {
+      // Decode testId if it’s encoded
+      testId = decodeURIComponent(testId);
+
       // Reference to the test document
       const testRef = db.collection('Tests').doc(testId);
   
@@ -345,4 +348,5 @@ router.get('/getAllTestData', async (req, res) => {
       res.status(500).json({ error: 'Internal Server Error' });
     }
   });
+
 module.exports = router;
