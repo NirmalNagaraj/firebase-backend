@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const moment = require('moment');
-const { db } = require('./config/firebaseAdmin'); // Firestore instance
+const { db ,admin} = require('./config/firebaseAdmin'); // Firestore instance
 const extractRegisterNumber = require('./middlewares/extractRegisterNumber');
 
 // Route to get upcoming company data based on student's CGPA
@@ -338,7 +338,9 @@ router.post('/add', async (req, res) => {
     // Create a new document in the Company_Applications collection with the company name
     const applicationsDoc = {
       willing: [],
-      notWilling: []
+      notWilling: [],
+      feedback:{},
+      placed:{}
     };
 
     await db.collection('Company_Applications').doc(name).set(applicationsDoc);
@@ -380,4 +382,251 @@ router.post('/check-willingness', async (req, res) => {
   }
 });
 
+
+router.get('/no-feedback-status', async (req, res) => {
+  try {
+    const companyRef = db.collection('Company');
+    const snapshot = await companyRef.where('feedbackStatus', '==', false).get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No matching documents found' });
+    }
+
+    // Map through the snapshot to retrieve each document's 'name' field
+    const companyNames = snapshot.docs.map(doc => doc.data().name);
+
+    res.status(200).json(companyNames);
+  } catch (error) {
+    console.error('Error retrieving documents:', error);
+    res.status(500).json({ message: 'Error retrieving documents', error });
+  }
+});
+
+router.post('/feedback', async (req, res) => {
+  const { companyName, pushTo } = req.body;
+
+  if (!companyName || !pushTo) {
+    return res.status(400).json({ error: 'companyName and pushTo are required' });
+  }
+
+  try {
+    // Step 1: Query for the company document by name
+    const companyQuery = db.collection('Company').where('name', '==', companyName);
+    const companySnapshot = await companyQuery.get();
+
+    // Check if company exists
+    if (companySnapshot.empty) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    const companyDoc = companySnapshot.docs[0];
+    const companyDocRef = companyDoc.ref;
+
+    // Step 2: Retrieve Register Numbers based on pushTo condition
+    let registerNumbers = [];
+    if (pushTo === 'All') {
+      const usersSnapshot = await db.collection('Users_details').get();
+      registerNumbers = usersSnapshot.docs.map(doc => doc.get('Register Number'));
+    } else if (pushTo === 'Applicants') {
+      const applicationDocRef = db.collection('Company_Applications').doc(companyName);
+      const applicationDoc = await applicationDocRef.get();
+
+      if (!applicationDoc.exists) {
+        return res.status(404).json({ error: 'Company application not found' });
+      }
+      registerNumbers = applicationDoc.get('willing') || [];
+    }
+
+    // Step 3: Create feedbackCompleted map with Register Numbers as keys and false as default value
+    const feedbackCompleted = {};
+    registerNumbers.forEach(registerNumber => {
+      feedbackCompleted[registerNumber] = false;
+    });
+
+    // Step 4: Update the Company document with feedbackStatus and feedbackCompleted map
+    await companyDocRef.set({
+      feedbackStatus: true,
+      feedbackCompleted
+    }, { merge: true });
+
+    res.status(200).json({ message: 'Feedback status updated and feedbackCompleted added successfully.' });
+
+  } catch (error) {
+    console.error('Error updating feedback status and feedbackCompleted:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+router.post('/check-feedback-status', extractRegisterNumber ,async (req, res) => {
+  const { registerNumber } = req;
+
+  // Validate input
+  if (!registerNumber) {
+    return res.status(400).json({ error: 'registerNumber is required' });
+  }
+
+  try {
+    // Step 1: Retrieve all documents in the Company collection
+    const companySnapshot = await db.collection('Company').get();
+
+    const matchingCompanies = [];
+
+    // Step 2: Traverse through each document
+    companySnapshot.forEach((doc) => {
+      const companyData = doc.data();
+
+      // Check if feedbackStatus is true
+      if (companyData.feedbackStatus) {
+        const feedbackCompleted = companyData.feedbackCompleted || {};
+
+        // Check if registerNumber is in feedbackCompleted and set to false
+        if (feedbackCompleted[registerNumber] === false) {
+          matchingCompanies.push({
+            documentId: doc.id,
+            companyName: companyData.name,
+          });
+        }
+      }
+    });
+
+    // Step 3: Return results based on whether any matches were found
+    if (matchingCompanies.length > 0) {
+      return res.status(200).json({ matchingCompanies });
+    } else {
+      return res.status(404).json({ error: 'No matching documents found' });
+    }
+  } catch (error) {
+    console.error('Error checking feedback status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
+router.post('/got-selected', extractRegisterNumber, async (req, res) => {
+  const { companyName, imageUrl, role, ctc } = req.body;
+  const { registerNumber } = req;
+
+  if (!companyName || !imageUrl || !registerNumber || !role || !ctc) {
+    return res.status(400).json({ error: 'companyName, imageUrl, registerNumber, role, and ctc are required' });
+  }
+
+  try {
+    const timestamp = admin.firestore.Timestamp.now();
+
+    // Step 1: Update or create the placed field in Company_Applications
+    const companyApplicationRef = db.collection('Company_Applications').doc(companyName);
+    const companyApplicationDoc = await companyApplicationRef.get();
+
+    // Create the document if it doesn't exist
+    if (!companyApplicationDoc.exists) {
+      await companyApplicationRef.set({
+        placed: {
+          [registerNumber]: {
+            role,
+            ctc,
+            imageUrl,
+            date: timestamp,
+          },
+        },
+      });
+    } else {
+      await companyApplicationRef.set({
+        placed: {
+          [registerNumber]: {
+            role,
+            ctc,
+            imageUrl,
+            date: timestamp,
+          },
+        },
+      }, { merge: true });
+    }
+
+    // Step 2: Update feedbackCompleted in the Company collection
+    const companyRef = db.collection('Company').where('name', '==', companyName);
+    const companySnapshot = await companyRef.get();
+
+    if (!companySnapshot.empty) {
+      const companyDoc = companySnapshot.docs[0].ref;
+      await companyDoc.update({
+        [`feedbackCompleted.${registerNumber}`]: true,
+      });
+    } else {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    // Step 3: Update or create placed field in Applications_Tracking
+    const applicationTrackingRef = db.collection('Applications_Tracking').doc(registerNumber);
+    await applicationTrackingRef.set({
+      placed: {
+        [companyName]: {
+          role,
+          ctc,
+          date: timestamp,
+        },
+      },
+    }, { merge: true });
+
+    res.status(200).json({ message: 'Student placement information updated successfully.' });
+  } catch (error) {
+    console.error('Error updating placement information:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// /rejection-review route
+router.post('/rejection-review', extractRegisterNumber, async (req, res) => {
+  const { companyName, needTraining, rejectedRound } = req.body;
+  const { registerNumber } = req;
+
+  if (!companyName || typeof needTraining === 'undefined' || !rejectedRound || !registerNumber) {
+    return res.status(400).json({ error: 'companyName, needTraining, rejectedRound, and registerNumber are required' });
+  }
+
+  try {
+    // Step 1: Update or create feedback field in Company_Applications
+    const companyAppRef = db.collection('Company_Applications').doc(companyName);
+    const companyAppDoc = await companyAppRef.get();
+
+    if (!companyAppDoc.exists) {
+      await companyAppRef.set({
+        feedback: {
+          [registerNumber]: {
+            needTraining,
+            rejectedRound,
+          },
+        },
+      });
+    } else {
+      await companyAppRef.set({
+        feedback: {
+          [registerNumber]: {
+            needTraining,
+            rejectedRound,
+          },
+        },
+      }, { merge: true });
+    }
+
+    // Step 2: Update feedbackCompleted in the Company collection
+    const companyRef = db.collection('Company').where('name', '==', companyName);
+    const companySnapshot = await companyRef.get();
+
+    if (!companySnapshot.empty) {
+      const companyDoc = companySnapshot.docs[0].ref;
+      await companyDoc.update({
+        [`feedbackCompleted.${registerNumber}`]: true,
+      });
+    } else {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    res.status(200).json({ message: 'Rejection review information updated successfully.' });
+  } catch (error) {
+    console.error('Error updating rejection review information:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 module.exports = router;

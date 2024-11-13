@@ -145,7 +145,7 @@ router.get('/getAllTestData', async (req, res) => {
         .get();
   
       if (querySnapshot.empty) {
-        return res.status(404).json({ message: 'No active tests found for the provided register number.' });
+        return res.status(200).json({ message: 'No active tests found for the provided register number.' });
       }
   
       // Prepare the result
