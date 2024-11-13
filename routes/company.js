@@ -512,17 +512,17 @@ router.post('/check-feedback-status', extractRegisterNumber ,async (req, res) =>
 });
 
 
-
 router.post('/got-selected', extractRegisterNumber, async (req, res) => {
-  const { companyName, imageUrl, role, ctc } = req.body;
+  const { companyName, imageUrl, role, ctc, offerDate } = req.body;
   const { registerNumber } = req;
 
-  if (!companyName || !imageUrl || !registerNumber || !role || !ctc) {
-    return res.status(400).json({ error: 'companyName, imageUrl, registerNumber, role, and ctc are required' });
+  if (!companyName || !imageUrl || !registerNumber || !role || !ctc || !offerDate) {
+    return res.status(400).json({ error: 'companyName, imageUrl, registerNumber, role, ctc, and offerDate are required' });
   }
 
   try {
     const timestamp = admin.firestore.Timestamp.now();
+    const offerTimestamp = admin.firestore.Timestamp.fromDate(new Date(offerDate));  // Convert offerDate to Firestore Timestamp
 
     // Step 1: Update or create the placed field in Company_Applications
     const companyApplicationRef = db.collection('Company_Applications').doc(companyName);
@@ -536,7 +536,7 @@ router.post('/got-selected', extractRegisterNumber, async (req, res) => {
             role,
             ctc,
             imageUrl,
-            date: timestamp,
+            date: offerTimestamp,  // Add offerDate field
           },
         },
       });
@@ -547,7 +547,7 @@ router.post('/got-selected', extractRegisterNumber, async (req, res) => {
             role,
             ctc,
             imageUrl,
-            date: timestamp,
+            date: offerTimestamp,  // Add offerDate field
           },
         },
       }, { merge: true });
@@ -574,6 +574,7 @@ router.post('/got-selected', extractRegisterNumber, async (req, res) => {
           role,
           ctc,
           date: timestamp,
+          offerDate: offerTimestamp,  // Add offerDate field
         },
       },
     }, { merge: true });
@@ -585,16 +586,18 @@ router.post('/got-selected', extractRegisterNumber, async (req, res) => {
   }
 });
 
+
 // /rejection-review route
 router.post('/rejection-review', extractRegisterNumber, async (req, res) => {
   const { companyName, needTraining, rejectedRound } = req.body;
   const { registerNumber } = req;
 
   if (!companyName || typeof needTraining === 'undefined' || !rejectedRound || !registerNumber) {
-    return res.status(400).json({ error: 'companyName, needTraining, rejectedRound, and registerNumber are required' });
+    return res.status(400).json({ error: 'companyName, needTraining, rejectedRound, registerNumber, and rejectionDate are required' });
   }
 
   try {
+
     // Step 1: Update or create feedback field in Company_Applications
     const companyAppRef = db.collection('Company_Applications').doc(companyName);
     const companyAppDoc = await companyAppRef.get();
@@ -638,4 +641,7 @@ router.post('/rejection-review', extractRegisterNumber, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
 module.exports = router;
