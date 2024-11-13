@@ -428,7 +428,7 @@ router.post('/feedback', async (req, res) => {
       const usersSnapshot = await db.collection('Users_details').get();
       registerNumbers = usersSnapshot.docs.map(doc => doc.get('Register Number'));
       console.log("All register numbers:", registerNumbers);
-    } else if (pushTo === 'Applicants') {
+    } else if (pushTo === 'applicants') {
       const applicationDocRef = db.collection('Company_Applications').doc(companyName);
       const applicationDoc = await applicationDocRef.get();
 
