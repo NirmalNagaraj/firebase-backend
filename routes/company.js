@@ -424,9 +424,10 @@ router.post('/feedback', async (req, res) => {
 
     // Step 2: Retrieve Register Numbers based on pushTo condition
     let registerNumbers = [];
-    if (pushTo === 'All') {
+    if (pushTo === 'all') {
       const usersSnapshot = await db.collection('Users_details').get();
       registerNumbers = usersSnapshot.docs.map(doc => doc.get('Register Number'));
+      console.log("All register numbers:", registerNumbers);
     } else if (pushTo === 'Applicants') {
       const applicationDocRef = db.collection('Company_Applications').doc(companyName);
       const applicationDoc = await applicationDocRef.get();
@@ -435,6 +436,12 @@ router.post('/feedback', async (req, res) => {
         return res.status(404).json({ error: 'Company application not found' });
       }
       registerNumbers = applicationDoc.get('willing') || [];
+      console.log("Applicant register numbers:", registerNumbers);
+    }
+
+    // Check if registerNumbers array is populated
+    if (registerNumbers.length === 0) {
+      return res.status(404).json({ error: 'No register numbers found for the specified condition' });
     }
 
     // Step 3: Create feedbackCompleted map with Register Numbers as keys and false as default value
@@ -449,13 +456,15 @@ router.post('/feedback', async (req, res) => {
       feedbackCompleted
     }, { merge: true });
 
-    res.status(200).json({ message: 'Feedback status updated and feedbackCompleted added successfully.' });
+    // Sending registerNumbers in the response
+    res.status(200).json({ message: 'Feedback status updated and feedbackCompleted added successfully.', registerNumbers });
 
   } catch (error) {
     console.error('Error updating feedback status and feedbackCompleted:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 router.post('/check-feedback-status', extractRegisterNumber ,async (req, res) => {
