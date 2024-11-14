@@ -65,6 +65,9 @@ router.post('/add', async (req, res) => {
     }
   });
 
+
+  //-----------V2------------
+
   // Route to get all documents from Test_Problems collection
 router.get('/testProblems', async (req, res) => {
   try {
@@ -151,4 +154,59 @@ router.put('/updateTestQuestion/:id', async (req, res) => {
     });
   }
 });
+
+
+
+router.get('/practice', async (req, res) => {
+  try {
+    // Fetch data from Test_problems collection
+    const testProblemsSnapshot = await db.collection('Test_problems').get();
+
+    // Handle case if Test_problems collection is empty
+    const testProblems = testProblemsSnapshot.empty
+      ? []
+      : testProblemsSnapshot.docs.map((doc) => {
+          const { problemName, difficulty, topic } = doc.data();
+          return {
+            id: doc.id,
+            problemName,
+            difficulty,
+            topic,
+          };
+        });
+
+    // Fetch data from Problems collection
+    const problemsSnapshot = await db.collection('Problems').get();
+
+    // Handle case if Problems collection is empty
+    const problems = problemsSnapshot.empty
+      ? []
+      : problemsSnapshot.docs.map((doc) => {
+          const { problemName, difficulty } = doc.data();
+          return {
+            id: doc.id,
+            problemName,
+            difficulty,
+            topic: 'Input/Output Functions', // Set topic for Problems collection
+          };
+        });
+
+    // Combine both sets of problems into a single array
+    const allProblems = [...testProblems, ...problems];
+
+    // Check if any problems were found
+    if (allProblems.length === 0) {
+      return res.status(404).json({ error: 'No problems found' });
+    }
+
+    // Send combined problems data as response
+    res.status(200).json(allProblems);
+  } catch (error) {
+    console.error('Error fetching problems:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
 module.exports = router;
