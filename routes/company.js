@@ -669,7 +669,7 @@ router.get('/placementsByDate', async (req, res) => {
           
           if (dateField && dateField instanceof admin.firestore.Timestamp) {
             const date = dateField.toDate();
-            const formattedDate = format(date, 'yyyy-MM'); // Format date to 'yyyy-MM' (e.g., 2024-09)
+            const formattedDate = format(date, 'yyyy-MM'); // Format date to 'yyyy-MM'
 
             if (!monthCounts[formattedDate]) {
               monthCounts[formattedDate] = 0;
@@ -680,12 +680,14 @@ router.get('/placementsByDate', async (req, res) => {
       }
     });
 
-    // Convert monthCounts object into a more readable format like "August: 3"
-    const result = Object.entries(monthCounts).map(([key, value]) => {
-      const [year, month] = key.split('-');
-      const monthName = format(new Date(year, month - 1), 'MMMM'); // Get month name (e.g., September)
-      return `${monthName}: ${value}`;
-    });
+    // Convert monthCounts object into a sorted, readable format like "August: 3"
+    const result = Object.entries(monthCounts)
+      .sort(([a], [b]) => new Date(a) - new Date(b)) // Sort by date
+      .map(([key, value]) => {
+        const [year, month] = key.split('-');
+        const monthName = format(new Date(year, month - 1), 'MMMM'); // Get month name
+        return `${monthName} ${year}: ${value}`;
+      });
 
     res.status(200).json(result);
   } catch (error) {
@@ -693,6 +695,7 @@ router.get('/placementsByDate', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 router.get('/placements-trainingCount', async (req, res) => {
