@@ -3,6 +3,7 @@ const router = express.Router();
 const moment = require('moment');
 const { db ,admin} = require('./config/firebaseAdmin'); // Firestore instance
 const extractRegisterNumber = require('./middlewares/extractRegisterNumber');
+const { format } = require('date-fns'); // To format the date into a readable month name
 
 // Route to get upcoming company data based on student's CGPA
 router.get('/upcoming', extractRegisterNumber, async (req, res) => {
@@ -644,4 +645,102 @@ router.post('/rejection-review', extractRegisterNumber, async (req, res) => {
 
 
 
+router.get('/placementsByDate', async (req, res) => {
+  try {
+    const companyCollection = db.collection('Company_Applications');
+    const snapshot = await companyCollection.get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ error: 'No documents found' });
+    }
+
+    const monthCounts = {};
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const companyName = doc.id;
+      const placed = data.placed;
+
+      if (placed && typeof placed === 'object') {
+        const registerNumbers = Object.keys(placed);
+        
+        registerNumbers.forEach(registerNumber => {
+          const dateField = placed[registerNumber].date;
+          
+          if (dateField && dateField instanceof admin.firestore.Timestamp) {
+            const date = dateField.toDate();
+            const formattedDate = format(date, 'yyyy-MM'); // Format date to 'yyyy-MM' (e.g., 2024-09)
+
+            if (!monthCounts[formattedDate]) {
+              monthCounts[formattedDate] = 0;
+            }
+            monthCounts[formattedDate]++;
+          }
+        });
+      }
+    });
+
+    // Convert monthCounts object into a more readable format like "August: 3"
+    const result = Object.entries(monthCounts).map(([key, value]) => {
+      const [year, month] = key.split('-');
+      const monthName = format(new Date(year, month - 1), 'MMMM'); // Get month name (e.g., September)
+      return `${monthName}: ${value}`;
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error retrieving company placements:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+router.get('/placements-trainingCount', async (req, res) => {
+  try {
+    const companyCollection = db.collection('Company_Applications');
+    const snapshot = await companyCollection.get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ error: 'No documents found' });
+    }
+
+    const companyFeedbackCounts = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const companyName = doc.id;
+      const feedback = data.feedback;
+
+      if (feedback && typeof feedback === 'object') {
+        let needTrainingTrueCount = 0;
+        let needTrainingFalseCount = 0;
+
+        const registerNumbers = Object.keys(feedback);
+
+        registerNumbers.forEach(registerNumber => {
+          const feedbackData = feedback[registerNumber];
+
+          if (feedbackData && typeof feedbackData === 'object' && feedbackData.needTraining !== undefined) {
+            if (feedbackData.needTraining === true) {
+              needTrainingTrueCount++;
+            } else if (feedbackData.needTraining === false) {
+              needTrainingFalseCount++;
+            }
+          }
+        });
+
+        companyFeedbackCounts.push({
+          companyName,
+          needTrainingTrueCount,
+          needTrainingFalseCount
+        });
+      }
+    });
+
+    res.status(200).json(companyFeedbackCounts);
+  } catch (error) {
+    console.error('Error retrieving company feedback:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 module.exports = router;
