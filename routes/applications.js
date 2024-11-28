@@ -67,4 +67,25 @@ router.post('/applications/add-status', extractRegisterNumber, async (req, res) 
   }
 });
 
+// New route to get all document IDs and names from Applications_Tracking
+router.get('/getNames', async (req, res) => {
+  try {
+    const snapshot = await db.collection('Applications_Tracking').get();
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No applications found.' });
+    }
+
+    const applications = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      applications.push({ registerNumber: doc.id, name: data.name });
+    });
+
+    res.status(200).json(applications);
+  } catch (error) {
+    console.error('Error retrieving application names:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 module.exports = router;
