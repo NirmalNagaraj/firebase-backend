@@ -39,31 +39,41 @@ router.get('/getProblems', async (req, res) => {
 });
 
 router.get('/getAllTestData', async (req, res) => {
-    try {
-      const testCollection = db.collection('Tests');
-      const snapshot = await testCollection.get();
-  
-      if (snapshot.empty) {
-        return res.status(404).json({ message: 'No data found in the Test collection' });
-      }
-  
-      // Collect each document's ID and data
-      const testData = [];
-      snapshot.forEach(doc => {
-        testData.push({
-          id: doc.id,
-          ...doc.data() // Spread operator to include all fields in the document
-        });
-      });
-  
-      // Send the collected data as JSON
-      return res.json({ testData });
-  
-    } catch (error) {
-      console.error('Error retrieving documents:', error);
-      return res.status(500).json({ error: 'Internal Server Error' });
+  try {
+    const testCollection = db.collection('Tests');
+    const snapshot = await testCollection.get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'No data found in the Test collection' });
     }
-  });
+
+    // Collect each document's ID and data
+    const testData = [];
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      const problemIds = data.problemIds || [];
+
+      // Retrieve problem names for each problemId
+      const problemNames = await Promise.all(problemIds.map(async (problemId) => {
+        const problemDoc = await db.collection('Test_problems').doc(problemId).get();
+        return problemDoc.exists ? problemDoc.data().problemName : null;
+      }));
+
+      testData.push({
+        id: doc.id,
+        ...data,
+        problemNames: problemNames.filter(name => name !== null) // Filter out any null values
+      });
+    }
+
+    // Send the collected data as JSON
+    return res.json({ testData });
+
+  } catch (error) {
+    console.error('Error retrieving documents:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 
   router.get('/getTestDocumentIds', async (req, res) => {
