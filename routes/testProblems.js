@@ -299,7 +299,7 @@ router.get('/getAllTestData', async (req, res) => {
   
 
   router.post('/submission', async (req, res) => {
-    let { testId, registerNumber, score, problemId } = req.body;
+    let { testId, registerNumber, score, problemId ,copyPasteCount ,tabSwitchCount} = req.body;
 
     try {
       // Decode testId if it’s encoded
@@ -327,6 +327,8 @@ router.get('/getAllTestData', async (req, res) => {
         score: score,
         completedTime: completedTime,
         problemIds: problemId,
+        copyPasteCount,
+        tabSwitchCount
       };
   
       // Check if the register number already exists in completionStatus
