@@ -309,7 +309,7 @@ router.get('/getAllTestData', async (req, res) => {
   
 
   router.post('/submission', async (req, res) => {
-    let { testId, registerNumber, score, problemId ,copyPasteCount ,tabSwitchCount , durationSpend} = req.body;
+    let { testId, registerNumber, score, problemId, copyPasteCount, tabSwitchCount, durationSpend } = req.body;
 
     try {
       // Decode testId if it’s encoded
@@ -332,23 +332,35 @@ router.get('/getAllTestData', async (req, res) => {
       const testData = testDoc.data();
       const completionStatus = testData.completionStatus || {};
   
-      // Create a new submission entry
-      const newSubmission = {
-        score: score,
-        completedTime: completedTime,
-        problemIds: problemId,
-        copyPasteCount,
-        tabSwitchCount,
-        durationSpend
-      };
-  
       // Check if the register number already exists in completionStatus
       if (completionStatus[registerNumber]) {
-        // If register number exists, add the new submission
-        completionStatus[registerNumber].push(newSubmission);
+        // Check if the problemId already exists for this register number
+        const existingSubmission = completionStatus[registerNumber].find(submission => submission.problemIds === problemId);
+        
+        if (existingSubmission) {
+          // If the problemId already exists, do not add a new submission
+          return res.json({ message: 'Submission already recorded for this problem' });
+        } else {
+          // If problemId does not exist, add the new submission
+          completionStatus[registerNumber].push({
+            score: score,
+            completedTime: completedTime,
+            problemIds: problemId,
+            copyPasteCount,
+            tabSwitchCount,
+            durationSpend
+          });
+        }
       } else {
         // If register number doesn't exist, create a new array for the register number
-        completionStatus[registerNumber] = [newSubmission];
+        completionStatus[registerNumber] = [{
+          score: score,
+          completedTime: completedTime,
+          problemIds: problemId,
+          copyPasteCount,
+          tabSwitchCount,
+          durationSpend
+        }];
       }
   
       // Update the document with the new completion status
