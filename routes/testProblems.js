@@ -309,7 +309,14 @@ router.get('/getAllTestData', async (req, res) => {
   
 
   router.post('/submission', async (req, res) => {
-    let { testId, registerNumber, score, problemId, copyPasteCount, tabSwitchCount, durationSpend } = req.body;
+    let { testId, registerNumber, score, problemId, copyPasteCount, tabSwitchCount, durationSpend, faceUndetectedCount, improperPoseCount, lowLightCount, mobileDetectedCount, movementWarningCount } = req.body;
+
+    // Set default values to 0 if not provided
+    faceUndetectedCount = faceUndetectedCount ?? 0;
+    improperPoseCount = improperPoseCount ?? 0;
+    lowLightCount = lowLightCount ?? 0;
+    mobileDetectedCount = mobileDetectedCount ?? 0;
+    movementWarningCount = movementWarningCount ?? 0;
 
     try {
       // Decode testId if it’s encoded
@@ -348,7 +355,12 @@ router.get('/getAllTestData', async (req, res) => {
             problemIds: problemId,
             copyPasteCount,
             tabSwitchCount,
-            durationSpend
+            durationSpend,
+            faceUndetectedCount,
+            improperPoseCount,
+            lowLightCount,
+            mobileDetectedCount,
+            movementWarningCount
           });
         }
       } else {
@@ -359,7 +371,12 @@ router.get('/getAllTestData', async (req, res) => {
           problemIds: problemId,
           copyPasteCount,
           tabSwitchCount,
-          durationSpend
+          durationSpend,
+          faceUndetectedCount,
+          improperPoseCount,
+          lowLightCount,
+          mobileDetectedCount,
+          movementWarningCount
         }];
       }
   
