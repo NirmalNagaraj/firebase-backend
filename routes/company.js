@@ -34,6 +34,7 @@ router.get('/upcoming', extractRegisterNumber, async (req, res) => {
 
     const historyOfArrears = parseInt(studentData['History of Arrears']) || 0;
     const currentBacklogs = parseInt(studentData['Current Backlogs']) || 0;
+    const studentGender = studentData.gender?.toLowerCase() || ''; // Fetch student's gender
 
     // Fetch upcoming companies from Firestore
     const companySnapshot = await db.collection('Company')
@@ -47,9 +48,15 @@ router.get('/upcoming', extractRegisterNumber, async (req, res) => {
       const companyCriteria = parseFloat(company.criteria) || 0;
       const companyHistoryArrears = company.maxAllowedHistoryOfArrears;
       const companyCurrentArrears = company.maxAllowedStandingArrears;
+      const companyGender = company.gender?.toLowerCase() || ''; // Fetch company's gender restriction
 
-      // Determine if the student is eligible based on the given conditions
+      // Determine if the student is eligible based on CGPA, arrears, and gender
       let isEligible = false;
+
+      if (companyGender && companyGender !== studentGender) {
+        // If company specifies gender, and it doesn't match the student's gender, they're ineligible
+        return null;
+      }
 
       if (companyHistoryArrears === 'Not Mentioned' && companyCurrentArrears === 'Not Mentioned') {
         isEligible = studentCGPA >= companyCriteria;
@@ -83,6 +90,7 @@ router.get('/upcoming', extractRegisterNumber, async (req, res) => {
 
     res.json(filteredCompanyData);
   } catch (err) {
+    console.error('Error fetching upcoming companies:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -316,7 +324,21 @@ router.get('/previous', async (req, res) => {
 
 // Route to add a new company
 router.post('/add', async (req, res) => {
-  const { name, date, ctc, criteria, type, role, link, imageUrls ,maxAllowedHistoryOfArrears ,maxAllowedStandingArrears} = req.body;
+  const { 
+    name, 
+    date, 
+    ctc, 
+    criteria, 
+    type, 
+    role, 
+    link, 
+    imageUrls, 
+    maxAllowedHistoryOfArrears, 
+    maxAllowedStandingArrears, 
+    bondValue, 
+    gender, 
+    expectedDate 
+  } = req.body;
 
   try {
     const newCompany = {
@@ -328,9 +350,12 @@ router.post('/add', async (req, res) => {
       role,
       link,
       imageUrls: imageUrls || [], // Add imageUrls or default to an empty array if not provided
-      maxAllowedStandingArrears ,
+      maxAllowedStandingArrears,
       maxAllowedHistoryOfArrears,
-      created_at: new Date()
+      bond: bondValue || '', // Store bondValue as bond
+      gender: gender || '',
+      expectedDate: expectedDate ? true : false, // Convert expectedDate to a Date if provided
+      created_at: new Date() // Timestamp for document creation
     };
 
     // Add the company document to the Company collection
@@ -340,16 +365,24 @@ router.post('/add', async (req, res) => {
     const applicationsDoc = {
       willing: [],
       notWilling: [],
-      feedback:{},
-      placed:{}
+      feedback: {},
+      placed: {}
     };
 
     await db.collection('Company_Applications').doc(name).set(applicationsDoc);
 
-    res.status(201).json({ success: true, message: 'Company added successfully!', companyId: docRef.id });
+    res.status(201).json({ 
+      success: true, 
+      message: 'Company added successfully!', 
+      companyId: docRef.id 
+    });
   } catch (error) {
     console.error('Error adding company:', error);
-    res.status(500).json({ success: false, message: 'Error adding company' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error adding company', 
+      error: error.message 
+    });
   }
 });
 
@@ -437,7 +470,6 @@ router.post('/feedback', async (req, res) => {
         return res.status(404).json({ error: 'Company application not found' });
       }
       registerNumbers = applicationDoc.get('willing') || [];
-      console.log("Applicant register numbers:", registerNumbers);
     }
 
     // Check if registerNumbers array is populated
