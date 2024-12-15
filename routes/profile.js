@@ -185,6 +185,11 @@ router.post('/updateGender', extractRegisterNumber, async (req, res) => {
     res.status(500).json({ message: 'Failed to update gender.', error: error.message });
   }
 });
-
+router.get('/getRegisternumber', extractRegisterNumber , async(req , res)=>{
+  const {registerNumber} = req;
+  res.status(200).json({
+    registerNumber
+  })
+})
   return router;
 };

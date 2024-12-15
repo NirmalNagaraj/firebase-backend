@@ -546,16 +546,20 @@ router.post('/check-feedback-status', extractRegisterNumber ,async (req, res) =>
 
 
 router.post('/got-selected', extractRegisterNumber, async (req, res) => {
-  const { companyName, imageUrl, role, ctc, offerDate } = req.body;
+  const { companyName, imageUrl, role, ctc, offerDate , offerLetter , offerLetterUrl } = req.body;
   const { registerNumber } = req;
 
   if (!companyName || !imageUrl || !registerNumber || !role || !ctc || !offerDate) {
+    console.error('Validation error: Missing required fields', { companyName, imageUrl, registerNumber, role, ctc, offerDate });
     return res.status(400).json({ error: 'companyName, imageUrl, registerNumber, role, ctc, and offerDate are required' });
   }
 
   try {
     const timestamp = admin.firestore.Timestamp.now();
     const offerTimestamp = admin.firestore.Timestamp.fromDate(new Date(offerDate));  // Convert offerDate to Firestore Timestamp
+
+    // Set offerLetterUrl to an empty string if not provided
+    const finalOfferLetterUrl = offerLetterUrl || '';
 
     // Step 1: Update or create the placed field in Company_Applications
     const companyApplicationRef = db.collection('Company_Applications').doc(companyName);
@@ -570,6 +574,8 @@ router.post('/got-selected', extractRegisterNumber, async (req, res) => {
             ctc,
             imageUrl,
             date: offerTimestamp,  // Add offerDate field
+            offerLetter,
+            offerLetterUrl: finalOfferLetterUrl
           },
         },
       });
@@ -580,7 +586,9 @@ router.post('/got-selected', extractRegisterNumber, async (req, res) => {
             role,
             ctc,
             imageUrl,
-            date: offerTimestamp,  // Add offerDate field
+            date: offerTimestamp,  // Add offerDate field,
+            offerLetter,
+            offerLetterUrl: finalOfferLetterUrl
           },
         },
       }, { merge: true });
@@ -607,7 +615,9 @@ router.post('/got-selected', extractRegisterNumber, async (req, res) => {
           role,
           ctc,
           date: timestamp,
-          offerDate: offerTimestamp,  // Add offerDate field
+          offerDate: offerTimestamp,  // Add offerDate field,
+          offerLetter,
+          offerLetterUrl: finalOfferLetterUrl
         },
       },
     }, { merge: true });

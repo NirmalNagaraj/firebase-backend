@@ -391,4 +391,46 @@ router.get('/getAllTestData', async (req, res) => {
     }
   });
 
+  router.get('/getUserIds/:docId', async (req, res) => {
+    try {
+      const documentName = req.params.docId; // Get the document name from params
+      const testsDocRef = db.collection('Tests').doc(documentName);
+      const testsDocSnapshot = await testsDocRef.get();
+  
+      if (!testsDocSnapshot.exists) {
+        return res.status(404).json({ message: `Document ${documentName} not found in Tests` });
+      }
+  
+      // Step 1: Extract user IDs from the 'Tests' collection
+      const testsData = testsDocSnapshot.data();
+      if (!testsData.completionStatus) {
+        return res.status(404).json({ message: `completionStatus not found in document ${documentName}` });
+      }
+  
+      const userIds = new Set(Object.keys(testsData.completionStatus));
+  
+      // Step 2: Fetch documents with 'name' field in 'Applications_Tracking'
+      const applicationsTrackingRef = db.collection('Applications_Tracking');
+      const applicationsSnapshot = await applicationsTrackingRef.get();
+  
+      const missingDocs = [];
+  
+      applicationsSnapshot.forEach((doc) => {
+        const docData = doc.data();
+        if (docData.name && !userIds.has(doc.id)) {
+          // Step 3: Compare doc ID with extracted user IDs and prepare Register Number
+          missingDocs.push({ registerNumber: doc.id, name: docData.name });
+        }
+      });
+  
+      // Step 4: Return the missing docs with Register Number and Name
+      res.json(missingDocs);
+    } catch (error) {
+      console.error('Error comparing user IDs:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+  
+  
+
 module.exports = router;
