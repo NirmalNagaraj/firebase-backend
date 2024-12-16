@@ -271,6 +271,123 @@ router.get('/no-due/:registerNumber', async (req, res) => {
   }
 });
 
+router.post('/get-placed', extractRegisterNumber, async (req, res) => {
+  const { registerNumber } = req;
+
+  if (!registerNumber) {
+    return res.status(400).json({ error: 'Register number is required' });
+  }
+
+  try {
+    // Reference the Applications_Tracking collection
+    const applicationsTrackingRef = db.collection('Applications_Tracking').doc(registerNumber);
+    const applicationsTrackingDoc = await applicationsTrackingRef.get();
+
+    // Check if the document exists
+    if (!applicationsTrackingDoc.exists) {
+      return res.status(404).json({ message: `No data found for register number: ${registerNumber}` });
+    }
+
+    // Extract the placed field
+    const docData = applicationsTrackingDoc.data();
+    const placedData = docData.placed || null;
+
+    res.status(200).json({
+      registerNumber,
+      placed: placedData,
+    });
+  } catch (error) {
+    console.error('Error retrieving placed data:', error);
+    res.status(500).json({
+      message: 'Error retrieving placed data',
+      error,
+    });
+  }
+});
+
+router.post('/upload-offerLetter', extractRegisterNumber ,async (req, res) => {
+  const { company, offerLetterUrl } = req.body;
+  const { registerNumber } = req;
+
+  if (!company || !offerLetterUrl || !registerNumber) {
+    return res.status(400).json({
+      error: 'company, offerLetterUrl, and registerNumber are required',
+    });
+  }
+
+  try {
+    // === STEP 1: Update Applications_Tracking collection ===
+    const applicationsTrackingRef = db.collection('Applications_Tracking').doc(registerNumber);
+    const applicationsTrackingDoc = await applicationsTrackingRef.get();
+
+    if (!applicationsTrackingDoc.exists) {
+      // Create the document if it doesn't exist
+      await applicationsTrackingRef.set({
+        placed: {
+          [company]: {
+            offerLetter: 'true',
+            offerLetterUrl,
+          },
+        },
+      });
+    } else {
+      // Update the placed field for the company
+      const placedData = applicationsTrackingDoc.data().placed || {};
+      placedData[company] = {
+        ...placedData[company],
+        offerLetter: 'true',
+        offerLetterUrl,
+      };
+
+      await applicationsTrackingRef.update({
+        placed: placedData,
+      });
+    }
+
+    // === STEP 2: Update Company_Applications collection ===
+    const companyApplicationsRef = db.collection('Company_Applications').doc(company);
+    const companyApplicationsDoc = await companyApplicationsRef.get();
+
+    if (!companyApplicationsDoc.exists) {
+      // Create the document if it doesn't exist
+      await companyApplicationsRef.set({
+        placed: {
+          [registerNumber]: {
+            offerLetter: true,
+            offerLetterUrl,
+          },
+        },
+      });
+    } else {
+      // Update the placed field for the registerNumber
+      const placedData = companyApplicationsDoc.data().placed || {};
+      placedData[registerNumber] = {
+        ...placedData[registerNumber],
+        offerLetter: true,
+        offerLetterUrl,
+      };
+
+      await companyApplicationsRef.update({
+        placed: placedData,
+      });
+    }
+
+    // Response
+    res.status(200).json({
+      message: 'Offer letter details updated successfully',
+      company,
+      registerNumber,
+      offerLetterUrl,
+    });
+  } catch (error) {
+    console.error('Error updating offer letter information:', error);
+    res.status(500).json({
+      message: 'Error updating offer letter information',
+      error,
+    });
+  }
+});
+
 
   return router;
 };
