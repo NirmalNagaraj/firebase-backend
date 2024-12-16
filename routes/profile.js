@@ -191,5 +191,86 @@ router.get('/getRegisternumber', extractRegisterNumber , async(req , res)=>{
     registerNumber
   })
 })
+
+router.get('/no-due/:registerNumber', async (req, res) => {
+  const { registerNumber } = req.params;
+
+  if (!registerNumber) {
+    return res.status(400).json({ error: 'Register number is required' });
+  }
+
+  try {
+    // Initialize counters
+    let totalCount = 0; // Total feedbackCompleted entries for the registerNumber
+    let trueCount = 0;  // True feedbackCompleted entries for the registerNumber
+
+    // === STEP 1: Check feedbackCompleted in Company Collection ===
+    const companyRef = db.collection('Company');
+    const companySnapshot = await companyRef.get();
+
+    if (!companySnapshot.empty) {
+      companySnapshot.forEach((doc) => {
+        const docData = doc.data();
+
+        // Check if feedbackCompleted exists and has the registerNumber as a key
+        const feedbackCompleted = docData.feedbackCompleted || {};
+        if (registerNumber in feedbackCompleted) {
+          totalCount++; // Increment total count
+          if (feedbackCompleted[registerNumber] === true) {
+            trueCount++; // Increment true count
+          }
+        }
+      });
+    }
+
+    // === STEP 2: Fetch CompletionStatus from Tests Collection ===
+    const testsRef = db.collection('Tests');
+    const testsSnapshot = await testsRef.get();
+
+    let completionStatus = []; // To store data from Tests collection
+
+    if (!testsSnapshot.empty) {
+      testsSnapshot.forEach((doc) => {
+        const docData = doc.data();
+
+        // Check if completionStatus exists and contains the registerNumber
+        const completionData = docData.completionStatus || {};
+        if (completionData[registerNumber]) {
+          completionStatus.push({
+            testId: doc.id,
+            status: completionData[registerNumber], // Store the data for this registerNumber
+          });
+        }
+      });
+    }
+
+    // === STEP 3: Fetch Placed Data from Applications_Tracking Collection ===
+    const applicationsTrackingRef = db.collection('Applications_Tracking').doc(registerNumber);
+    const applicationsTrackingDoc = await applicationsTrackingRef.get();
+
+    let placedData = null; // To store placed field data
+    if (applicationsTrackingDoc.exists) {
+      const docData = applicationsTrackingDoc.data();
+      placedData = docData.placed || null; // Fetch the placed field
+    }
+
+    // Respond with the aggregated data
+    res.status(200).json({
+      registerNumber,
+      totalFeedbackCount: totalCount,
+      trueFeedbackCount: trueCount,
+      completionStatus, // Data from Tests collection
+      placedData, // Placed field from Applications_Tracking
+    });
+  } catch (error) {
+    console.error('Error retrieving data:', error);
+    res.status(500).json({
+      message: 'Error retrieving data',
+      error,
+    });
+  }
+});
+
+
   return router;
 };

@@ -56,4 +56,31 @@ router.get('/filter', async (req, res) => {
   }
 });
 
+
+router.get('/getAllUsers', async (req, res) => {
+  try {
+    // Reference the collection
+    const collectionRef = db.collection('Users_details');
+
+    // Fetch all documents from the collection
+    const querySnapshot = await collectionRef.get();
+
+    if (querySnapshot.empty) {
+      return res.status(404).json({ message: 'No documents found in the collection' });
+    }
+
+    // Extract and format the data
+    const results = querySnapshot.docs.map(doc => ({
+      id: doc.id, // Include the document ID
+      ...doc.data() // Include the document data
+    }));
+
+    // Return the data
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error retrieving all documents:', error.message);
+    res.status(500).json({ error: 'Error retrieving all documents' });
+  }
+});
+
 module.exports = router;
