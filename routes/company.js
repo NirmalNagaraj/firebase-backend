@@ -436,6 +436,7 @@ router.get('/no-feedback-status', async (req, res) => {
   }
 });
 
+
 router.post('/feedback', async (req, res) => {
   const { companyName, pushTo } = req.body;
 
@@ -788,4 +789,277 @@ router.get('/placements-trainingCount', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+//Route for adding off campus placement data
+router.post('/add/offCampusPlacementData',extractRegisterNumber, async (req, res) => {
+  const {registerNumber} = req;
+  const {
+    companyName,
+    companyType,
+    ctc,
+    offerLetterUrl,
+    offerType,
+    role,
+    offerDate, // New field
+    imageUrl,
+  } = req.body;
+
+  if (
+    !companyName ||
+    !companyType ||
+    !ctc ||
+    !offerLetterUrl ||
+    !offerType ||
+    !role ||
+    !offerDate ||
+    !imageUrl
+  ) {
+    return res
+      .status(400)
+      .json({ error: 'All fields, including offerDate, are required in the payload.' });
+  }
+
+  try {
+    // Convert offerDate to Firestore Timestamp
+    const timestamp = admin.firestore.Timestamp.now();
+    const offerTimestamp = admin.firestore.Timestamp.fromDate(new Date(offerDate));
+
+    // Step 1: Update Applications_Tracking collection
+    const applicationsTrackingRef = db
+      .collection('Applications_Tracking')
+      .doc(registerNumber.toString());
+
+    const applicationsTrackingDoc = await applicationsTrackingRef.get();
+
+    if (!applicationsTrackingDoc.exists) {
+      await applicationsTrackingRef.set({
+        placed: {
+          [companyName]: {
+            ctc,
+            date: timestamp,
+            offerDate: offerTimestamp,
+            offerLetter: true,
+            offerLetterUrl,
+            role,
+            offerType,
+            offCampus:true
+          },
+        },
+      });
+    } else {
+      await applicationsTrackingRef.update({
+        [`placed.${companyName}`]: {
+          ctc,
+          date: timestamp,
+          offerDate: offerTimestamp,
+          offerLetter: true,
+          offerLetterUrl,
+          role,
+          offerType,
+          offCampus:true
+        },
+      });
+    }
+
+    // Step 2: Update Company_Applications collection
+    const companyApplicationsRef = db
+      .collection('Company_Applications')
+      .doc(companyName);
+
+    const companyApplicationsDoc = await companyApplicationsRef.get();
+
+    if (!companyApplicationsDoc.exists) {
+      await companyApplicationsRef.set({
+        placed: {
+          [registerNumber]: {
+            ctc,
+            date: offerTimestamp,
+            offerLetter: true,
+            offerLetterUrl,
+            role,
+            companyType,
+            imageUrl,
+            offCampus:true
+          },
+        },
+      });
+    } else {
+      await companyApplicationsRef.update({
+        [`placed.${registerNumber}`]: {
+          ctc,
+          date: offerTimestamp,
+          offerLetter: true,
+          offerLetterUrl,
+          role,
+          companyType,
+          imageUrl,
+          offCampus:true
+        },
+      });
+    }
+
+    res.status(200).json({ message: 'Off-campus placement data added successfully.' });
+  } catch (error) {
+    console.error('Error adding off-campus placement data:', error);
+    res.status(500).json({
+      error: 'Failed to add off-campus placement data.',
+      details: error.message,
+    });
+  }
+});
+
+//Route to edit the placements data
+router.put('/edit/placementData', async (req, res) => {
+  const { company, ctc, offerDate, role } = req.body;
+
+  if (!company || !ctc || !offerDate || !role) {
+    return res.status(400).json({
+      error: 'All fields (company, ctc, offerDate, role) are required in the payload.',
+    });
+  }
+
+  try {
+    // Convert offerDate to Firestore Timestamp
+    const offerTimestamp = admin.firestore.Timestamp.fromDate(new Date(offerDate));
+
+    // Step 1: Update Company_Applications
+    const companyApplicationsRef = db.collection('Company_Applications').doc(company);
+    const companyApplicationsDoc = await companyApplicationsRef.get();
+
+    if (!companyApplicationsDoc.exists) {
+      return res.status(404).json({ error: `Company ${company} not found in Company_Applications.` });
+    }
+
+    // Retrieve the existing placed field to update
+    const companyPlacedData = companyApplicationsDoc.data().placed || {};
+
+    // Update each entry in the placed field for the company
+    const updatedCompanyPlaced = Object.entries(companyPlacedData).reduce((acc, [registerNumber, data]) => {
+      acc[registerNumber] = {
+        ...data,
+        ctc,
+        offerDate: offerTimestamp,
+        role,
+      };
+      return acc;
+    }, {});
+
+    await companyApplicationsRef.update({ placed: updatedCompanyPlaced });
+
+    // Step 2: Update Applications_Tracking
+    const batch = db.batch();
+    const applicationsTrackingSnapshot = await db
+      .collection('Applications_Tracking')
+      .where(`placed.${company}`, '!=', null)
+      .get();
+
+    if (applicationsTrackingSnapshot.empty) {
+      return res.status(404).json({ error: `No register numbers found for company ${company} in Applications_Tracking.` });
+    }
+
+    applicationsTrackingSnapshot.forEach((doc) => {
+      const registerNumber = doc.id;
+      const docData = doc.data();
+      const placedData = docData.placed || {};
+
+      if (placedData[company]) {
+        placedData[company] = {
+          ...placedData[company],
+          ctc,
+          offerDate: offerTimestamp,
+          role,
+        };
+      }
+
+      const docRef = db.collection('Applications_Tracking').doc(registerNumber);
+      batch.update(docRef, { placed: placedData });
+    });
+
+    await batch.commit();
+
+    res.status(200).json({ message: `Placement data for ${company} updated successfully.` });
+  } catch (error) {
+    console.error('Error updating placement data:', error);
+    res.status(500).json({
+      error: 'Failed to update placement data.',
+      details: error.message,
+    });
+  }
+});
+
+//Route to delete the off campus data
+router.delete('/delete/deleteOffCampusData', extractRegisterNumber, async (req, res) => {
+  const { company } = req.body;
+  const { registerNumber } = req;
+
+  // Validate payload
+  if (!company || !registerNumber) {
+    return res.status(400).json({
+      error: 'Both company and registerNumber are required in the payload.',
+    });
+  }
+
+  try {
+    // Step 1: Update Company_Applications
+    const companyApplicationsRef = db.collection('Company_Applications').doc(company);
+    const companyApplicationsDoc = await companyApplicationsRef.get();
+
+    if (!companyApplicationsDoc.exists) {
+      return res.status(404).json({
+        error: `Company ${company} not found in Company_Applications.`,
+      });
+    }
+
+    const companyData = companyApplicationsDoc.data();
+    const placedMap = companyData.placed || {}; // Assuming placed is a map (object)
+
+    if (typeof placedMap !== 'object') {
+      return res.status(500).json({
+        error: 'Unexpected data structure in Company_Applications placed field.',
+      });
+    }
+
+    // Remove the entry for the specific registerNumber
+    delete placedMap[registerNumber];
+
+    // Update the Company_Applications document
+    await companyApplicationsRef.update({ placed: placedMap });
+
+    // Step 2: Update Applications_Tracking
+    const applicationsTrackingRef = db.collection('Applications_Tracking').doc(registerNumber);
+    const applicationsTrackingDoc = await applicationsTrackingRef.get();
+
+    if (!applicationsTrackingDoc.exists) {
+      return res.status(404).json({
+        error: `Register number ${registerNumber} not found in Applications_Tracking.`,
+      });
+    }
+
+    const applicationsTrackingData = applicationsTrackingDoc.data();
+    const placedMapInTracking = applicationsTrackingData.placed || {}; // Assuming placed is a map (object)
+
+    if (typeof placedMapInTracking !== 'object') {
+      return res.status(500).json({
+        error: 'Unexpected data structure in Applications_Tracking placed field.',
+      });
+    }
+
+    // Remove the company data from the placed map
+    delete placedMapInTracking[company];
+
+    // Update the Applications_Tracking document
+    await applicationsTrackingRef.update({ placed: placedMapInTracking });
+
+    res.status(200).json({
+      message: `Off-campus placement data for company ${company} and register number ${registerNumber} deleted successfully.`,
+    });
+  } catch (error) {
+    console.error('Error deleting off-campus placement data:', error);
+    res.status(500).json({
+      error: 'Failed to delete off-campus placement data.',
+      details: error.message,
+    });
+  }
+});
+
 module.exports = router;
