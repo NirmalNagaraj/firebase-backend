@@ -938,7 +938,7 @@ router.put('/edit/placementData', async (req, res) => {
       acc[registerNumber] = {
         ...data,
         ctc,
-        offerDate: offerTimestamp,
+        date: offerTimestamp,
         role,
       };
       return acc;
