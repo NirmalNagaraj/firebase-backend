@@ -791,13 +791,14 @@ router.get('/placements-trainingCount', async (req, res) => {
 });
 
 //Route for adding off campus placement data
-router.post('/add/offCampusPlacementData',extractRegisterNumber, async (req, res) => {
+router.post('/add/PlacementData',extractRegisterNumber, async (req, res) => {
   const {registerNumber} = req;
   const {
     companyName,
     companyType,
     ctc,
     offerLetterUrl,
+    offCampus,
     offerType,
     role,
     offerDate, // New field
@@ -842,7 +843,7 @@ router.post('/add/offCampusPlacementData',extractRegisterNumber, async (req, res
             offerLetterUrl,
             role,
             offerType,
-            offCampus:true
+            offCampus
           },
         },
       });
@@ -856,7 +857,7 @@ router.post('/add/offCampusPlacementData',extractRegisterNumber, async (req, res
           offerLetterUrl,
           role,
           offerType,
-          offCampus:true
+          offCampus
         },
       });
     }
@@ -879,7 +880,7 @@ router.post('/add/offCampusPlacementData',extractRegisterNumber, async (req, res
             role,
             companyType,
             imageUrl,
-            offCampus:true
+            offCampus
           },
         },
       });
@@ -893,7 +894,7 @@ router.post('/add/offCampusPlacementData',extractRegisterNumber, async (req, res
           role,
           companyType,
           imageUrl,
-          offCampus:true
+          offCampus
         },
       });
     }
