@@ -30,19 +30,30 @@ router.post('/applications/add-status', extractRegisterNumber, async (req, res) 
 
   // Validate inputs
   if (!registerNumber || !companyName || typeof status !== 'boolean') {
-    return res.status(400).json({ message: 'Invalid input data. Please provide registerNumber, companyName, and status.' });
+    return res.status(400).json({
+      message: 'Invalid input data. Please provide registerNumber, companyName, and status.',
+    });
   }
 
   try {
     // Reference to Applications_Tracking collection
     const applicationsTrackingRef = db.collection('Applications_Tracking').doc(registerNumber);
 
+    // Current timestamp
+    const currentTimestamp = admin.firestore.Timestamp.now();
+
     // Update Applications_Tracking
-    await applicationsTrackingRef.set({
-      Status: {
-        [companyName]: status // Set company name as key and status as value
-      }
-    }, { merge: true }); // Use merge to keep existing data intact
+    await applicationsTrackingRef.set(
+      {
+        Status: {
+          [companyName]: status, // Set company name as key and status as value
+        },
+        timestamp: {
+          [companyName]: currentTimestamp, // Set company name as key and current timestamp as value
+        },
+      },
+      { merge: true } // Use merge to keep existing data intact
+    );
 
     // Reference to Company_Applications collection
     const companyApplicationsRef = db.collection('Company_Applications').doc(companyName);
@@ -50,17 +61,23 @@ router.post('/applications/add-status', extractRegisterNumber, async (req, res) 
     // Update Company_Applications based on status
     if (status) {
       // If status is true, add registerNumber to willing array
-      await companyApplicationsRef.set({
-        willing: admin.firestore.FieldValue.arrayUnion(registerNumber)
-      }, { merge: true }); // Merge to keep existing data
+      await companyApplicationsRef.set(
+        {
+          willing: admin.firestore.FieldValue.arrayUnion(registerNumber),
+        },
+        { merge: true } // Merge to keep existing data
+      );
     } else {
       // If status is false, add registerNumber to notWilling array
-      await companyApplicationsRef.set({
-        notWilling: admin.firestore.FieldValue.arrayUnion(registerNumber)
-      }, { merge: true }); // Merge to keep existing data
+      await companyApplicationsRef.set(
+        {
+          notWilling: admin.firestore.FieldValue.arrayUnion(registerNumber),
+        },
+        { merge: true } // Merge to keep existing data
+      );
     }
 
-    res.status(200).json({ message: 'Status updated successfully' });
+    res.status(200).json({ message: 'Status and timestamp updated successfully' });
   } catch (error) {
     console.error('Error updating application status:', error);
     res.status(500).json({ error: 'An error occurred while updating the status' });
