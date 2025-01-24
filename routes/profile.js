@@ -294,7 +294,7 @@ router.post('/get-placed', extractRegisterNumber, async (req, res) => {
 
     res.status(200).json({
       registerNumber,
-      placed: placedData,
+      placed: placedData || [],
     });
   } catch (error) {
     console.error('Error retrieving placed data:', error);
@@ -387,6 +387,7 @@ router.post('/upload-offerLetter', extractRegisterNumber ,async (req, res) => {
     });
   }
 });
+
 
 
   return router;
