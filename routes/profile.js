@@ -118,39 +118,99 @@ module.exports = () => {
     }
   });
   
-router.get('/checkGenderField',extractRegisterNumber , async (req, res) => {
-  try {
-    const { registerNumber } = req; // Extract Register Number from request body
-
-    if (!registerNumber) {
-      return res.status(400).json({ error: 'Register Number is required' });
+  router.get('/checkPlacedCompanies', extractRegisterNumber, async (req, res) => {
+    try {
+      const { registerNumber } = req; // Extract registerNumber from middleware
+  
+      // Validate input
+      if (!registerNumber) {
+        return res.status(400).json({ error: 'Register Number is required' });
+      }
+  
+      // Reference the Applications_Tracking collection and fetch the document by registerNumber
+      const applicationsTrackingRef = db.collection('Applications_Tracking').doc(registerNumber);
+      const applicationsTrackingDoc = await applicationsTrackingRef.get();
+  
+      if (!applicationsTrackingDoc.exists) {
+        return res.status(404).json({ message: `No data found for Register Number: ${registerNumber}` });
+      }
+  
+      // Retrieve the placed field from the document
+      const data = applicationsTrackingDoc.data();
+      const placed = data.placed || {}; // Default to an empty object if 'placed' field does not exist
+  
+      // Filter company names where the 'offerAccepted' field is not present
+      const companyNames = Object.keys(placed).filter(
+        (companyName) => !Object.prototype.hasOwnProperty.call(placed[companyName], 'offerAccepted')
+      );
+  
+      res.status(200).json({
+        registerNumber,
+        companyNames,
+      });
+    } catch (error) {
+      console.error('Error checking placed companies:', error);
+      res.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
+  });
 
-    // Query the Users_details collection to find the document with the given Register Number
-    const usersCollection = db.collection('Users_details');
-    const querySnapshot = await usersCollection.where('Register Number', '==', registerNumber).get();
 
-    if (querySnapshot.empty) {
-      return res.status(404).json({ message: `No document found with Register Number: ${registerNumber}` });
+
+  router.post('/offerAccepted', extractRegisterNumber, async (req, res) => {
+    try {
+      const { companyName, offerAccepted, reason } = req.body; // Extract details from request body
+      const { registerNumber } = req;
+  
+      // Validate input
+      if (!registerNumber || !companyName || typeof offerAccepted !== 'boolean') {
+        return res.status(400).json({
+          error: 'Invalid input. Please provide registerNumber, companyName, and offerAccepted (boolean).',
+        });
+      }
+  
+      // Reference to the Applications_Tracking document for the provided registerNumber
+      const applicationsTrackingRef = db.collection('Applications_Tracking').doc(registerNumber);
+      const applicationsTrackingDoc = await applicationsTrackingRef.get();
+  
+      if (!applicationsTrackingDoc.exists) {
+        return res.status(404).json({
+          message: `No data found for Register Number: ${registerNumber}`,
+        });
+      }
+  
+      // Get the current placed data
+      const data = applicationsTrackingDoc.data();
+      const placed = data.placed || {};
+  
+      // Check if the company exists in the placed field
+      if (!placed[companyName]) {
+        return res.status(404).json({
+          message: `Company ${companyName} not found for Register Number: ${registerNumber}`,
+        });
+      }
+  
+      // Update the offerAccepted field for the specific company
+      placed[companyName].offerAccepted = offerAccepted;
+  
+      // If reason is provided, add/update the reason field
+      if (reason) {
+        placed[companyName].reason = reason;
+      }
+  
+      // Update the Applications_Tracking document
+      await applicationsTrackingRef.update({ placed });
+  
+      res.status(200).json({
+        message: `Offer acceptance status for company ${companyName} updated successfully.`,
+      });
+    } catch (error) {
+      console.error('Error updating offer acceptance status:', error);
+      res.status(500).json({
+        error: 'Failed to update offer acceptance status.',
+        details: error.message,
+      });
     }
-
-    // Since Register Number is unique, we expect only one document
-    const doc = querySnapshot.docs[0];
-    const data = doc.data();
-
-    // Check if the 'gender' field is empty or not
-    const isEmpty = data.gender === undefined || data.gender === '';
-
-    res.status(200).json({
-      registerNumber,
-      gender: isEmpty ? 'empty' : data.gender,
-      isEmpty
-    });
-  } catch (error) {
-    console.error('Error checking gender field:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
+  });
 
 
 router.post('/updateGender', extractRegisterNumber, async (req, res) => {
