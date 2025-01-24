@@ -252,6 +252,43 @@ router.get('/getRegisternumber', extractRegisterNumber , async(req , res)=>{
   })
 })
 
+// Check Gender field route 
+
+router.get('/checkGenderField', extractRegisterNumber, async (req, res) => {
+  try {
+    const { registerNumber } = req; // Extract Register Number from request
+
+    if (!registerNumber) {
+      return res.status(400).json({ error: 'Register Number is required' });
+    }
+
+    // Query the Users_details collection to find the document with the given Register Number
+    const usersCollection = db.collection('Users_details');
+    const querySnapshot = await usersCollection.where('Register Number', '==', registerNumber).get();
+
+    if (querySnapshot.empty) {
+      return res.status(404).json({ message: `No document found with Register Number: ${registerNumber}` });
+    }
+
+    // Since Register Number is unique, we expect only one document
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+
+    // Check if the 'gender' field is empty or not
+    const isEmpty = data.gender === undefined || data.gender === '';
+
+    res.status(200).json({
+      registerNumber,
+      gender: isEmpty ? 'empty' : data.gender,
+      isEmpty
+    });
+  } catch (error) {
+    console.error('Error checking gender field:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
 router.get('/no-due/:registerNumber', async (req, res) => {
   const { registerNumber } = req.params;
 
