@@ -1063,4 +1063,110 @@ router.delete('/delete/deleteOffCampusData', extractRegisterNumber, async (req, 
   }
 });
 
+
+router.get('/noOfPlacements/:number', async (req, res) => {
+  const { number } = req.params;
+
+  // Validate the parameter
+  const placementCount = parseInt(number, 10);
+  if (isNaN(placementCount) || placementCount < 0) {
+    return res.status(400).json({ error: 'The number parameter must be a valid non-negative integer.' });
+  }
+
+  try {
+    // Reference the Applications_Tracking collection
+    const applicationsTrackingSnapshot = await db.collection('Applications_Tracking').get();
+
+    if (applicationsTrackingSnapshot.empty) {
+      return res.status(404).json({ message: 'No data found in Applications_Tracking collection.' });
+    }
+
+    const matchingRegisterNumbers = [];
+
+    applicationsTrackingSnapshot.forEach((doc) => {
+      const docData = doc.data();
+      const placed = docData.placed || {}; // Default to an empty object if placed is not present
+      const placedCount = Object.keys(placed).length; // Count the number of companies in placed
+
+      if (placedCount === placementCount) {
+        matchingRegisterNumbers.push(doc.id); // Push the registerNumber (document ID) into the array
+      }
+    });
+
+    res.status(200).json({
+      placementCount,
+      matchingRegisterNumbers,
+    });
+  } catch (error) {
+    console.error('Error fetching placement data:', error);
+    res.status(500).json({
+      error: 'An error occurred while fetching the placement data.',
+      details: error.message,
+    });
+  }
+});
+router.get('/placementCount', async (req, res) => {
+  try {
+    // Reference the Applications_Tracking collection
+    const applicationsTrackingSnapshot = await db.collection('Applications_Tracking').get();
+
+    if (applicationsTrackingSnapshot.empty) {
+      return res.status(404).json({ message: 'No data found in Applications_Tracking collection.' });
+    }
+
+    const placementCounts = [];
+
+    // Iterate through all documents in the collection
+    applicationsTrackingSnapshot.forEach((doc) => {
+      const docData = doc.data();
+      const placed = docData.placed || {}; // Default to an empty object if 'placed' field is not present
+      const placedCount = Object.keys(placed).length; // Count the number of companies in 'placed'
+
+      placementCounts.push({
+        registerNumber: doc.id, // Document ID as the registerNumber
+        placementCount: placedCount,
+      });
+    });
+
+    res.status(200).json({
+      placementCounts,
+    });
+  } catch (error) {
+    console.error('Error retrieving placement counts:', error);
+    res.status(500).json({
+      error: 'An error occurred while fetching the placement counts.',
+      details: error.message,
+    });
+  }
+});
+
+
+router.get('/getAllCompanyIds', async (req, res) => {
+  try {
+    // Reference to the Company_Applications collection
+    const companyApplicationsRef = db.collection('Company_Applications');
+    const snapshot = await companyApplicationsRef.get();
+
+    // Check if the collection is empty
+    if (snapshot.empty) {
+      return res.status(404).json({
+        message: 'No documents found in the Company_Applications collection.',
+      });
+    }
+
+    // Extract document IDs
+    const docIds = snapshot.docs.map((doc) => doc.id);
+
+    res.status(200).json({
+      message: 'Document IDs retrieved successfully.',
+      docIds,
+    });
+  } catch (error) {
+    console.error('Error fetching document IDs:', error);
+    res.status(500).json({
+      error: 'Failed to fetch document IDs.',
+      details: error.message,
+    });
+  }
+});
 module.exports = router;
