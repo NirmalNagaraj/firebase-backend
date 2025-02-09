@@ -117,6 +117,8 @@ module.exports = () => {
       res.status(500).json({ error: 'Internal Server Error' });
     }
   });
+
+  // Route to check number of company's that has been accepted or not
   
   router.get('/checkPlacedCompanies', extractRegisterNumber, async (req, res) => {
     try {
@@ -485,6 +487,74 @@ router.post('/upload-offerLetter', extractRegisterNumber ,async (req, res) => {
   }
 });
 
+router.get('/get/cocubes',extractRegisterNumber, async (req, res) => {
+  try {
+    const { registerNumber } = req; // Extract registerNumber from query params
+
+    // Validate input
+    if (!registerNumber) {
+      return res.status(400).json({ error: 'Register Number is required' });
+    }
+
+    // Reference to the Applications_Tracking collection and fetch the document
+    const applicationsTrackingRef = db.collection('Applications_Tracking').doc(registerNumber);
+    const applicationsTrackingDoc = await applicationsTrackingRef.get();
+
+    // Check if the document exists
+    if (!applicationsTrackingDoc.exists) {
+      return res.status(404).json({ message: `No data found for Register Number: ${registerNumber}` });
+    }
+
+    // Retrieve the document data
+    const data = applicationsTrackingDoc.data();
+
+    // Check if the cocubes field exists
+    const hasCocubes = data.hasOwnProperty('cocubes');
+
+    res.status(200).json({
+      registerNumber,
+      hasCocubes, // Returns true if cocubes field exists, otherwise false
+    });
+  } catch (error) {
+    console.error('Error checking cocubes field:', error);
+    res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+});
+
+
+router.post('/add/cocubes',extractRegisterNumber, async (req, res) => {
+  try {
+    const { fileUrl, score } = req.body; // Extract data from request body
+    const {registerNumber} = req;
+
+    // Validate input
+    if (!registerNumber || !fileUrl || score === undefined) {
+      return res.status(400).json({ error: 'Register Number, fileUrl, and score are required.' });
+    }
+
+    // Reference to the Applications_Tracking collection and the document with the registerNumber
+    const applicationsTrackingRef = db.collection('Applications_Tracking').doc(registerNumber);
+    const applicationsTrackingDoc = await applicationsTrackingRef.get();
+
+    // Check if the document exists and if cocubes field is already present
+    if (applicationsTrackingDoc.exists) {
+      const data = applicationsTrackingDoc.data();
+      if (data.cocubes) {
+        return res.status(200).json({ message: 'Cocubes field already exists. No update performed.' });
+      }
+    }
+
+    // Update the document with the new cocubes field
+    await applicationsTrackingRef.update({
+      cocubes: { fileUrl, score },
+    });
+
+    res.status(200).json({ message: 'Cocubes details added successfully.' });
+  } catch (error) {
+    console.error('Error updating Cocubes details:', error);
+    res.status(500).json({ error: 'Failed to update Cocubes details.', details: error.message });
+  }
+});
 
 
   return router;
