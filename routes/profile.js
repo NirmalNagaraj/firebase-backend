@@ -556,6 +556,52 @@ router.post('/add/cocubes',extractRegisterNumber, async (req, res) => {
   }
 });
 
+// Route to get all users who have completed cocubes (have both fileUrl & score)
+router.get('/cocubes/completed', async (req, res) => {
+  try {
+    const snapshot = await db.collection('Applications_Tracking').get();
+    const completed = [];
 
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.cocubes && data.cocubes.fileUrl && data.cocubes.score) {
+        completed.push({
+          registerNumber: doc.id,
+          name: data.name || 'N/A', // Default name if not present
+          fileUrl: data.cocubes.fileUrl,
+          score: data.cocubes.score
+        });
+      }
+    });
+
+    res.status(200).json(completed);
+  } catch (error) {
+    console.error('Error fetching completed cocubes:', error);
+    res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+});
+
+// Route to get all users who have not completed cocubes (missing fileUrl or score)
+router.get('/cocubes/not-completed', async (req, res) => {
+  try {
+    const snapshot = await db.collection('Applications_Tracking').get();
+    const notCompleted = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (!data.cocubes || !data.cocubes.fileUrl || !data.cocubes.score) {
+        notCompleted.push({
+          registerNumber: doc.id,
+          name: data.name || 'N/A' // Fetch name from document
+        });
+      }
+    });
+
+    res.status(200).json(notCompleted);
+  } catch (error) {
+    console.error('Error fetching not completed cocubes:', error);
+    res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+});
   return router;
 };
