@@ -42,7 +42,7 @@ module.exports = () => {
       const userDocRef = usersSnapshot.docs[0].ref;
       await userDocRef.update({
         CGPA: cgpa,
-        "History Of Arrears": historyOfArrears,
+        "History of Arrears": historyOfArrears,
         "Current Backlogs": currentBacklogs,
         "Skill Set": skillset,
         "Other Interested Domain": otherDomain,

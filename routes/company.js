@@ -9,6 +9,17 @@ const { format } = require('date-fns'); // To format the date into a readable mo
 router.get('/upcoming', extractRegisterNumber, async (req, res) => {
   const registerNumber = req.registerNumber;
 
+  if (!registerNumber.startsWith('711721')) {
+    const companySnapshot = await db.collection('Company')
+      .where('date', '>=', new Date())
+      .get();
+    const allFutureCompanies = companySnapshot.docs.map(doc => {
+      const company = { isFinalYear : false ,id: doc.id, ...doc.data() };
+      return company;
+    });
+    return res.status(200).json(allFutureCompanies);
+  }
+
   if (!registerNumber) {
     return res.status(400).json({ error: 'Register number is required' });
   }
@@ -95,7 +106,20 @@ router.get('/upcoming', extractRegisterNumber, async (req, res) => {
   }
 });
 
+router.get('/check-isFinalyear',extractRegisterNumber, async ( req , res) =>{
+  const registerNumber = req.registerNumber;
 
+  try {
+    if (!registerNumber.startsWith('711721')) {
+    
+      return res.status(200).json({isFinalYear : false});
+    }
+    return res.status(200).json({ isFinalYear: true });
+  } catch (error) {
+    console.error('Error fetching companies:', error);
+    return res.status(500).json({ error : "An Error occured" });
+  }
+})
 
 router.put('/edit', async (req, res) => {
   const {

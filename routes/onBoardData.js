@@ -29,7 +29,7 @@ router.post('/add', extractRegisterNumber, async (req, res) => {
     await userRef.update({
       'History of Arrears': historyOfArrears,
       'Github': github,
-      'LinkedIn': linkedin,
+      'Linkedin': linkedin,
       'Resume': resume,
       'Current Backlogs': currentBacklogs,
     });
@@ -70,25 +70,25 @@ router.post('/new', extractRegisterNumber, async (req, res) => {
     
     const { registerNumber } = req;
     
-    console.log({
-      email,
-      github,
-      rollNo,
-      currentBacklogs,
-      historyOfArrears,
-      tenPercent,
-      diplomaPercent,
-      name,
-      linkedin,
-      mobileNumber,
-      isDiploma,
-      otherInterestedDomain,
-      skillSet,
-      domain,
-      resume,
-      cgpa,
-      registerNumber,
-    });
+    // console.log({
+    //   email,
+    //   github,
+    //   rollNo,
+    //   currentBacklogs,
+    //   historyOfArrears,
+    //   tenPercent,
+    //   diplomaPercent,
+    //   name,
+    //   linkedin,
+    //   mobileNumber,
+    //   isDiploma,
+    //   otherInterestedDomain,
+    //   skillSet,
+    //   domain,
+    //   resume,
+    //   cgpa,
+    //   registerNumber,
+    // });
     
     // Construct the data object to insert into Firestore
     const userDetails = {
@@ -101,14 +101,14 @@ router.post('/new', extractRegisterNumber, async (req, res) => {
       '10 Percent': tenPercent || '',
       'Diploma / 12th Percentage': diplomaPercent || '',
       Name: name || '',
-      LinkedIn: linkedin || '',
+      Linkedin: linkedin || '',
       'Mobile Number': mobileNumber || '',
       isDiploma: isDiploma ? 'Yes' : 'No', // If true, insert "Yes", otherwise "No"
-      SkillSet: skillSet || '',
+      'Skill Set': skillSet || '',
       Domain: domain || '',
       Resume: resume || '',
       CGPA: cgpa || '',
-      OtherInterestedDomain: otherInterestedDomain || '',
+      'Other Interested Domain': otherInterestedDomain || '',
       isMentor: 0, // Default value
     };
 
