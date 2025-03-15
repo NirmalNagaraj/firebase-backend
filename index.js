@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const logMiddleware = require('./logger')
 const loginRouter = require('./routes/auth/login'); // Adjust the path if necessary
 const companyQuestionRouter = require('./routes/questions')
 const companyRouter = require('./routes/company');
@@ -24,8 +25,8 @@ const reportRouter = require('./routes/report')
 const testRouter = require('./routes/testProblems');
 const app = express();
 const port = process.env.PORT || 8000;
-
 // Middleware setup
+app.use(logMiddleware("60485bbb-49e3-4efc-9eeb-3c5c473ce0dd"))
 app.use(cors()); // Allows cross-origin requests
 app.use(bodyParser.json()); // Parses incoming JSON requests
 
@@ -51,6 +52,7 @@ app.use('/',applyRouter);
 app.use('/report',reportRouter)
 app.use('/emails',emailRouter);
 app.use('/test',testRouter);
+ 
 // Root route
 app.get('/', (req, res) => {
   res.send('Welcome to the API');
